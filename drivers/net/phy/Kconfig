@@ -408,6 +408,12 @@ config MARVELL_10G_PHY
 	---help---
 	  Support for the Marvell Alaska MV88X3310 and compatible PHYs.
 
+config MARVELL_88Q2122_PHY
+	tristate "Marvell 88Q2122 PHY"
+	---help---
+	  Support for the Marvell 88Q2122 Ethernet
+	  Transceiver.
+
 config MESON_GXL_PHY
 	tristate "Amlogic Meson GXL Internal PHY"
 	depends on ARCH_MESON || COMPILE_TEST

@@ -207,11 +207,30 @@
 	renesas,no-ether-link;
 	status = "okay";
 
-	phy0: ethernet-phy@0 {
+	phy0: ethernet-phy@3 {
+		compatible = "ethernet-phy-ieee802.3-c45";
 		rxc-skew-ps = <1500>;
-		reg = <0>;
+		reg = <3>;
 		interrupt-parent = <&gpio4>;
 		interrupts = <23 IRQ_TYPE_LEVEL_LOW>;
+	};
+};
+
+&avb {
+	pinctrl-0 = <&avb_pins>;
+	pinctrl-names = "default";
+	phy-handle = <&phy1>;
+	phy-mode = "rgmii-id";
+	renesas,no-ether-link;
+	status = "okay";
+
+	phy1: ethernet-phy@3 {
+		compatible = "ethernet-phy-ieee802.3-c45";
+		rxc-skew-ps = <1500>;
+		reg = <3>;
+		interrupt-parent = <&gpio1>;
+		interrupts = <17 IRQ_TYPE_LEVEL_LOW>;
+/*		reset-gpios = <&gpio1 16 GPIO_ACTIVE_LOW>;*/
 	};
 };
 
@@ -572,6 +591,11 @@
 		groups = "gether_mdio_a", "gether_rgmii",
 			 "gether_txcrefclk", "gether_txcrefclk_mega";
 		function = "gether";
+	};
+
+	avb_pins: avb {
+		groups = "avb_link", "avb_mdio", "avb_rgmii", "avb_txcrefclk";
+		function = "avb";
 	};
 
 	i2c0_pins: i2c0 {

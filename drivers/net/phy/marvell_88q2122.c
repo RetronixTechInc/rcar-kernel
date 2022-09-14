@@ -47,11 +47,23 @@ MODULE_DESCRIPTION("Marvell 88Q2122 PHY driver");
 MODULE_AUTHOR("Layne");
 MODULE_LICENSE("GPL");
 
-static int m88Q2122_probe(struct phy_device *phydev)
+static int iMasterSlave = 3;
+
+static int __init m88Q2122_GetGethMasterSlave(char *line)
 {
-	phydev_info(phydev, "Marvell m88Q2122_probe!\n");
-	return 0;
+	int iDrop, iVal;
+
+	iVal = kstrtoint(line, 0, &iDrop);
+	if (!iVal)
+	{
+		iMasterSlave = iDrop;
+	}
+
+	return 1;
 }
+
+__setup("geth_ms=", m88Q2122_GetGethMasterSlave);
+
 
 // Write a 16-bit value into a register through SMI interface.
 // @param phydev bootstrap address of the PHY
@@ -59,20 +71,18 @@ static int m88Q2122_probe(struct phy_device *phydev)
 // @param regAddr register address within section
 // @param data 16-bit to write into register
 // @return void
-//static void regWrite ( uint16_t phydev, uint16_t devAddr, uint16_t regAddr, uint16_t data );
 static void regWrite ( struct phy_device *phydev, u16 devAddr, u16 regAddr, u16 data )
 {
-	int value = 0;
-	int ret = 0;
+	int iRet = 0;
 
 	//set slave mode of the phy
-	ret = mdiobus_write(phydev->mdio.bus, phydev->mdio.addr, REGISTER13_ADDR, devAddr);
-	ret |= mdiobus_write(phydev->mdio.bus, phydev->mdio.addr, REGISTER14_ADDR, regAddr);
-	ret |= mdiobus_write(phydev->mdio.bus, phydev->mdio.addr, REGISTER13_ADDR, DEVADDR_OFFSET+devAddr);
-	ret |= mdiobus_write(phydev->mdio.bus, phydev->mdio.addr, REGISTER14_ADDR, data);
-	if(ret < 0)
+	iRet = mdiobus_write(phydev->mdio.bus, phydev->mdio.addr, REGISTER13_ADDR, devAddr);
+	iRet |= mdiobus_write(phydev->mdio.bus, phydev->mdio.addr, REGISTER14_ADDR, regAddr);
+	iRet |= mdiobus_write(phydev->mdio.bus, phydev->mdio.addr, REGISTER13_ADDR, DEVADDR_OFFSET+devAddr);
+	iRet |= mdiobus_write(phydev->mdio.bus, phydev->mdio.addr, REGISTER14_ADDR, data);
+	if(iRet < 0)
 	{
-		phydev_err(phydev, "set slave mdiobus_write ret:0x%x!\n", ret);
+		phydev_err(phydev, "set slave mdiobus_write ret:0x%x!\n", iRet);
 	}
 }
 
@@ -81,30 +91,29 @@ static void regWrite ( struct phy_device *phydev, u16 devAddr, u16 regAddr, u16 
 // @param devAddr section of register map (Ex: 0x07 : Auto-Neg registers)
 // @param regAddr register address within section
 // @return value in register if successful
-//static int regRead ( uint16_t phydev, uint16_t devAddr, uint16_t regAddr );
 static int regRead ( struct phy_device *phydev, u16 devAddr, u16 regAddr )
 {
-	int value = 0;
-	int ret = 0;
+	int iValue = 0;
+	int iRet = 0;
 
-	ret = mdiobus_write(phydev->mdio.bus, phydev->mdio.addr, REGISTER13_ADDR, devAddr);
-	ret |= mdiobus_write(phydev->mdio.bus, phydev->mdio.addr, REGISTER14_ADDR, regAddr);
-	ret |= mdiobus_write(phydev->mdio.bus, phydev->mdio.addr, REGISTER13_ADDR, DEVADDR_OFFSET+devAddr);
-	if(ret < 0)
+	iRet = mdiobus_write(phydev->mdio.bus, phydev->mdio.addr, REGISTER13_ADDR, devAddr);
+	iRet |= mdiobus_write(phydev->mdio.bus, phydev->mdio.addr, REGISTER14_ADDR, regAddr);
+	iRet |= mdiobus_write(phydev->mdio.bus, phydev->mdio.addr, REGISTER13_ADDR, DEVADDR_OFFSET+devAddr);
+	if(iRet < 0)
 	{
-		phydev_err(phydev, "read status mdiobus_write ret:0x%x!\n", ret);
+		phydev_err(phydev, "read status mdiobus_write ret:0x%x!\n", iRet);
 	}
-	value = mdiobus_read(phydev->mdio.bus, phydev->mdio.addr, REGISTER14_ADDR);
-	//phydev_info(phydev, "Marvell m88Q2122 read mode value:0x%x!\n", value);
+	iValue = mdiobus_read(phydev->mdio.bus, phydev->mdio.addr, REGISTER14_ADDR);
+	//phydev_info(phydev, "Marvell m88Q2122 read mode value:0x%x!\n", iValue);
 
-	return value;
+	return iValue;
 }
 
 // Set Master/Slave mode of the PHY by software
 // @param phydev bootstrap address of the PHY
 // @param forceMaster
 // @return void
-static void setMasterSlave(struct phy_device *phydev, bool forceMaster)
+static void m88Q2122_setMasterSlave(struct phy_device *phydev, bool forceMaster)
 {
 	u16 regData = 0;
 	regData = regRead(phydev, 1, 0x0834);
@@ -136,7 +145,7 @@ static void setMasterSlave(struct phy_device *phydev, bool forceMaster)
 // Check current master/slave setting
 // @param phydev address of the PHY
 // @return true if master, false if slave
-static bool isMaster(struct phy_device *phydev)
+static bool m88Q2122_isMaster(struct phy_device *phydev)
 {
 	return (0x0 != (regRead(phydev, 7, 0x8001) & 0x4000));
 }
@@ -144,20 +153,23 @@ static bool isMaster(struct phy_device *phydev)
 // Software Reset procedure
 // @param phydev address of the PHY
 // @return void
-static void softReset(struct phy_device *phydev)
+static void m88Q2122_softReset(struct phy_device *phydev)
 {
 	phydev_info(phydev, "SoftReset\n");
-	int regData = regRead(phydev, 1, 0x0000);
+
+	u16 regData = 0 ;
+
+	regData = regRead(phydev, 1, 0x0000);
 
 	regData |= 1 << 11;
 	regWrite(phydev, 1, 0x0000, regData);
 	regWrite(phydev, 3, 0xFFE4, 0x000C);
-	msleep(1000);
+	msleep(100);
 	regWrite(phydev, 3, 0xFFE4, 0x06B6);
 	regData &= ~(1 << 11);
 
 	regWrite(phydev, 1, 0x0000, regData);
-	msleep(1000);
+	msleep(100);
 	regWrite(phydev, 3, 0xFC47, 0x0030);
 	regWrite(phydev, 3, 0xFC47, 0x0031);
 	regWrite(phydev, 3, 0xFC47, 0x0030);
@@ -169,20 +181,82 @@ static void softReset(struct phy_device *phydev)
 	regWrite(phydev, 3, 0xFFE4, 0x000C);
 }
 
+static ssize_t m88Q2122_mode_show(struct device *dev, struct device_attribute *attr, char *buf)
+{
+	struct phy_device *phydev = to_phy_device(dev);
+
+	if (m88Q2122_isMaster(phydev))
+	{
+		return sprintf(buf, "master");
+	}
+	else
+	{
+		return sprintf(buf, "slave");
+	}
+}
+
+static ssize_t m88Q2122_mode_store(struct device *dev, struct device_attribute *attr, const char *buf, size_t count)
+{
+	struct phy_device *phydev = to_phy_device(dev);
+	int iSetValue = 0 ;
+
+	if (sysfs_streq(buf, "master"))
+	{
+		iSetValue = 1;
+	}
+	else if (sysfs_streq(buf, "slave"))
+	{
+		iSetValue = 0;
+	}
+	else
+	{
+		return count ;
+	}
+
+	if (m88Q2122_isMaster(phydev) != iSetValue)
+	{
+		m88Q2122_setMasterSlave(phydev, iSetValue);
+	}
+
+	return count ;
+}
+
+static DEVICE_ATTR(m88Q2122_mode, S_IRUGO | S_IWUSR, m88Q2122_mode_show, m88Q2122_mode_store);
+
+// PHY probe
+// @param phydev address of the PHY
+// @return int
+static int m88Q2122_probe(struct phy_device *phydev)
+{
+	phydev_info(phydev, "Marvell m88Q2122_probe!\n");
+
+	struct device *dev = &phydev->mdio.dev;
+	device_create_file(dev, &dev_attr_m88Q2122_mode);
+
+	// Set Master/Slave mode of the PHY by software
+	//bit0: sh_mii, bit1: ravb_mii
+	//0: Slave:Slave, 1: Slave:Master, 2: Master:Slave, 3: Master:Master
+	if (0 == strcmp(phydev->mdio.bus->name, "sh_mii"))
+	{
+		m88Q2122_setMasterSlave(phydev, iMasterSlave & 0x01);
+	}
+	else
+	{
+		m88Q2122_setMasterSlave(phydev, (iMasterSlave >> 1) & 0x01);
+	}
+
+	return 0;
+}
+
 // Initialize PHY
 // @param phydev address of the PHY
 // @return void
 static int m88Q2122_config_init(struct phy_device *phydev)
 {
-	setMasterSlave(phydev, 1);
-
 	phydev_info(phydev, "Marvell m88Q2122_config_init!\n");
 
-	int regData = 0;
+	u16 regData = 0;
 
-	regData = regRead(phydev, 1, 0x0002);
-	regData = regRead(phydev, 1, 0x0003);
-	msleep(2000);
 	regWrite(phydev, 1, 0x0900, 0x4000);
 	regWrite(phydev, 7, 0x0200, 0x0000);
 
@@ -192,7 +266,7 @@ static int m88Q2122_config_init(struct phy_device *phydev)
 
 	regWrite(phydev, 3, 0xFFE4, 0x07B5);
 	regWrite(phydev, 3, 0xFFE4, 0x06B6);
-	msleep(5000);
+	msleep(500);
 	regWrite(phydev, 3, 0xFFDE, 0x402F);
 	regWrite(phydev, 3, 0xFE2A, 0x3C3D);
 	regWrite(phydev, 3, 0xFE34, 0x4040);
@@ -230,7 +304,7 @@ static int m88Q2122_config_init(struct phy_device *phydev)
 	regWrite(phydev, 3, 0xFC13, 0x0010);
 	//LPSD feature
 	if (MRVL_Q212X_LPSD_FEATURE_ENABLE){
-		if (isMaster(phydev)){
+		if (m88Q2122_isMaster(phydev)){
 			regWrite(phydev, 7, 0x8032, 0x005A);
 		}
 		else{
@@ -261,7 +335,7 @@ static int m88Q2122_config_init(struct phy_device *phydev)
 		regWrite(phydev, 3, 0xFE04, 0x0008);
 	}
 
-	softReset(phydev);
+	m88Q2122_softReset(phydev);
 
 	return 0;
 }
@@ -299,6 +373,7 @@ static int m88Q2122_aneg_done(struct phy_device *phydev)
 {
 	return 1;
 }
+
 static struct phy_driver marvell_88Q2122_drivers[] = {
 	{
 		.phy_id = MARVELL_PHY_ID_88Q2122,

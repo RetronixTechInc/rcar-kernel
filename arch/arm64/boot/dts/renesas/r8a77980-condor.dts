@@ -219,7 +219,7 @@
 	pinctrl-0 = <&gether_pins>;
 	pinctrl-names = "default";
 
-	phy-mode = "rgmii-id";
+	phy-mode = "rgmii";
 	phy-handle = <&phy1>;
 	renesas,no-ether-link;
 	status = "okay";

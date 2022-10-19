@@ -136,11 +136,15 @@
 };
 
 &canfd {
-	pinctrl-0 = <&canfd0_pins>;
+	pinctrl-0 = <&canfd0_pins &canfd1_pins>;
 	pinctrl-names = "default";
 	status = "okay";
 
 	channel0 {
+		status = "okay";
+	};
+
+	channel1 {
 		status = "okay";
 	};
 };
@@ -304,7 +308,7 @@
 		#size-cells = <0>;
 		reg = <0x48>;
 		regs = <0x0c 0x0d 0x0e 0x0f>;
-		shutdown-gpios = <&io_expander0 0 GPIO_ACTIVE_LOW>;
+		shutdown-gpios = <&io_expander1 0 GPIO_ACTIVE_LOW>;
 		maxim,fsync-mode = "automatic";
 		maxim,gpio0 = <0>;
 
@@ -425,9 +429,10 @@
 		#size-cells = <0>;
 		reg = <0x4a>;
 		regs = <0x1c 0x1d 0x1e 0x1f>;
-		shutdown-gpios = <&io_expander1 0 GPIO_ACTIVE_LOW>;
+		shutdown-gpios = <&io_expander0 0 GPIO_ACTIVE_LOW>;
 		maxim,fsync-mode = "automatic";
 		maxim,gpio0 = <0>;
+		status = "disabled";
 
 		ports {
 			#address-cells = <1>;

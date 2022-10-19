@@ -590,6 +590,11 @@
 		function = "canfd0";
 	};
 
+	canfd1_pins: canfd1 {
+		groups = "canfd1_data_a";
+		function = "canfd1";
+	};
+
 	avb_pins: avb {
 		groups = "avb_link", "avb_mdio", "avb_rgmii", "avb_txcrefclk";
 		function = "avb";

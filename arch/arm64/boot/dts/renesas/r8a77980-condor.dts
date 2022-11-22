@@ -133,6 +133,8 @@
 		#clock-cells = <0>;
 		clock-frequency = <148500000>;
 	};
+	
+
 };
 
 &canfd {
@@ -162,7 +164,7 @@
 			csi40_in: endpoint {
 				clock-lanes = <0>;
 				data-lanes = <1 2 3 4>;
-				remote-endpoint = <&max9286_out0>;
+				remote-endpoint = <&deser_out0>;
 			};
 		};
 	};
@@ -181,7 +183,7 @@
 			csi41_in: endpoint {
 				clock-lanes = <0>;
 				data-lanes = <1 2 3 4>;
-				remote-endpoint = <&max9286_out1>;
+				remote-endpoint = <&deser_out1>;
 			};
 		};
 	};
@@ -298,19 +300,80 @@
 &i2c1 {
 	pinctrl-0 = <&i2c1_pins>;
 	pinctrl-names = "default";
-
+	#address-cells = <1>;
+	#size-cells = <0>;
 	status = "okay";
 	clock-frequency = <400000>;
 
-	max9286@48 {
-		compatible = "maxim,max9286";
+	max2008x@28 {
+		compatible = "maxim,max2008x";
+		reg = <0x28>;
+		#io-channel-cells = <1>;
+
+		regulators {
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			vdd_cam0: SW0 {
+				reg = <0>;
+				regulator-name = "Camera-0";
+			};
+			vdd_cam1: SW1 {
+				reg = <1>;
+				regulator-name = "Camera-1";
+			};
+			vdd_cam2: SW2 {
+				reg = <2>;
+				regulator-name = "Camera-2";
+			};
+			vdd_cam3: SW3 {
+				reg = <3>;
+				regulator-name = "Camera-3";
+			};
+		};
+	};
+
+	max2008x_2@29 {
+		compatible = "maxim,max2008x";
+		reg = <0x29>;
+		#io-channel-cells = <1>;
+
+		regulators {
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			vdd_cam4: SW0 {
+				reg = <0>;
+				regulator-name = "Camera-4";
+			};
+			vdd_cam5: SW1 {
+				reg = <1>;
+				regulator-name = "Camera-5";
+			};
+			vdd_cam6: SW2 {
+				reg = <2>;
+				regulator-name = "Camera-6";
+			};
+			vdd_cam7: SW3 {
+				reg = <3>;
+				regulator-name = "Camera-7";
+			};
+		};
+	};
+
+	deser@2a {
+		compatible = "maxim,max96712";
 		#address-cells = <1>;
 		#size-cells = <0>;
-		reg = <0x48>;
+		reg = <0x2a>;
 		regs = <0x0c 0x0d 0x0e 0x0f>;
-		shutdown-gpios = <&io_expander1 0 GPIO_ACTIVE_LOW>;
-		maxim,fsync-mode = "automatic";
-		maxim,gpio0 = <0>;
+		shutdown-gpios = <&gpio3 2 GPIO_ACTIVE_HIGH>;
+		maxim,links-mipi-map = <1 1 1 1>;
+
+		poc0-supply = <&vdd_cam0>;
+		poc1-supply = <&vdd_cam1>;
+		poc2-supply = <&vdd_cam2>;
+		poc3-supply = <&vdd_cam3>;
 
 		ports {
 			#address-cells = <1>;
@@ -318,35 +381,35 @@
 
 			port@0 {
 				reg = <0>;
-				max9286_in0: endpoint {
+				deser_in0: endpoint {
 					remote-endpoint = <&camera_out0>;
 				};
 			};
 
 			port@1 {
 				reg = <1>;
-				max9286_in1: endpoint {
+				deser_in1: endpoint {
 					remote-endpoint = <&camera_out1>;
 				};
 			};
 
 			port@2 {
 				reg = <2>;
-				max9286_in2: endpoint {
+				deser_in2: endpoint {
 					remote-endpoint = <&camera_out2>;
 				};
 			};
 
 			port@3 {
 				reg = <3>;
-				max9286_in3: endpoint {
+				deser_in3: endpoint {
 					remote-endpoint = <&camera_out3>;
 				};
 			};
 
 			port@4 {
 				reg = <4>;
-				max9286_out0: endpoint {
+				deser_out0: endpoint {
 					clock-lanes = <0>;
 					data-lanes = <1 2 3 4>;
 					remote-endpoint = <&csi40_in>;
@@ -365,7 +428,7 @@
 
 				port {
 					camera_out0: endpoint {
-						remote-endpoint = <&max9286_in0>;
+						remote-endpoint = <&deser_in0>;
 					};
 				};
 			};
@@ -382,7 +445,7 @@
 
 				port {
 					camera_out1: endpoint {
-						remote-endpoint = <&max9286_in1>;
+						remote-endpoint = <&deser_in1>;
 					};
 				};
 			};
@@ -399,7 +462,7 @@
 
 				port {
 					camera_out2: endpoint {
-						remote-endpoint = <&max9286_in2>;
+						remote-endpoint = <&deser_in2>;
 					};
 				};
 			};
@@ -416,23 +479,26 @@
 
 				port {
 					camera_out3: endpoint {
-						remote-endpoint = <&max9286_in3>;
+						remote-endpoint = <&deser_in3>;
 					};
 				};
 			};
 		};
 	};
-
-	max9286@4a {
-		compatible = "maxim,max9286";
+	
+	deser@6b {
+		compatible = "maxim,max96712";
 		#address-cells = <1>;
 		#size-cells = <0>;
-		reg = <0x4a>;
+		reg = <0x6b>;
 		regs = <0x1c 0x1d 0x1e 0x1f>;
-		shutdown-gpios = <&io_expander0 0 GPIO_ACTIVE_LOW>;
-		maxim,fsync-mode = "automatic";
-		maxim,gpio0 = <0>;
-		status = "disabled";
+		shutdown-gpios = <&gpio3 3 GPIO_ACTIVE_HIGH>;
+		maxim,links-mipi-map = <1 1 1 1>;
+
+		poc0-supply = <&vdd_cam4>;
+		poc1-supply = <&vdd_cam5>;
+		poc2-supply = <&vdd_cam6>;
+		poc3-supply = <&vdd_cam7>;
 
 		ports {
 			#address-cells = <1>;
@@ -440,35 +506,35 @@
 
 			port@0 {
 				reg = <0>;
-				max9286_in4: endpoint {
+				deser_in4: endpoint {
 					remote-endpoint = <&camera_out4>;
 				};
 			};
 
 			port@1 {
 				reg = <1>;
-				max9286_in5: endpoint {
+				deser_in5: endpoint {
 					remote-endpoint = <&camera_out5>;
 				};
 			};
 
 			port@2 {
 				reg = <2>;
-				max9286_in6: endpoint {
+				deser_in6: endpoint {
 					remote-endpoint = <&camera_out6>;
 				};
 			};
 
 			port@3 {
 				reg = <3>;
-				max9286_in7: endpoint {
+				deser_in7: endpoint {
 					remote-endpoint = <&camera_out7>;
 				};
 			};
 
 			port@4 {
 				reg = <4>;
-				max9286_out1: endpoint {
+				deser_out1: endpoint {
 					clock-lanes = <0>;
 					data-lanes = <1 2 3 4>;
 					remote-endpoint = <&csi41_in>;
@@ -487,7 +553,7 @@
 
 				port {
 					camera_out4: endpoint {
-						remote-endpoint = <&max9286_in4>;
+						remote-endpoint = <&deser_in4>;
 					};
 				};
 			};
@@ -504,7 +570,7 @@
 
 				port {
 					camera_out5: endpoint {
-						remote-endpoint = <&max9286_in5>;
+						remote-endpoint = <&deser_in5>;
 					};
 				};
 			};
@@ -521,7 +587,7 @@
 
 				port {
 					camera_out6: endpoint {
-						remote-endpoint = <&max9286_in6>;
+						remote-endpoint = <&deser_in6>;
 					};
 				};
 			};
@@ -538,13 +604,12 @@
 
 				port {
 					camera_out7: endpoint {
-						remote-endpoint = <&max9286_in7>;
+						remote-endpoint = <&deser_in7>;
 					};
 				};
 			};
 		};
 	};
-
 };
 
 &lvds0 {
@@ -591,7 +656,7 @@
 	};
 
 	canfd1_pins: canfd1 {
-		groups = "canfd1_data_a";
+		groups = "canfd1_data";
 		function = "canfd1";
 	};
 

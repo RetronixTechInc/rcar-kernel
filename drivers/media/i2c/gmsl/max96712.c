@@ -50,13 +50,17 @@ static int fsync_period;
 module_param(fsync_period, int, 0644);
 MODULE_PARM_DESC(fsync_period, " Frame sync period (default: 3.2MHz)");
 
-static int hsync;
+static int hsync = 0;
 module_param(hsync, int, 0644);
 MODULE_PARM_DESC(hsync, " HSYNC invertion (default: 0 - not inverted)");
 
-static int vsync = 1;
+static int vsync = 0;
 module_param(vsync, int, 0644);
-MODULE_PARM_DESC(vsync, " VSYNC invertion (default: 1 - inverted)");
+MODULE_PARM_DESC(vsync, " VSYNC invertion (default: 0 - not inverted)");
+
+static int de = 1;
+module_param(de, int, 0644);
+MODULE_PARM_DESC(vsync, " DE invertion (default: 1 - inverted)");
 
 static int gpio_resetb;
 module_param(gpio_resetb, int, 0644);
@@ -66,7 +70,7 @@ static int active_low_resetb;
 module_param(active_low_resetb, int, 0644);
 MODULE_PARM_DESC(active_low_resetb, " Serializer GPIO reset level (default: 0 - active high)");
 
-static int timeout_n = 100;
+static int timeout_n = 300;
 module_param(timeout_n, int, 0644);
 MODULE_PARM_DESC(timeout_n, " Timeout of link detection (default: 100 retries)");
 
@@ -353,9 +357,9 @@ static void max96712_gmsl1_link_crossbar_setup(struct max96712_priv *priv, int l
 		break;
 	}
 
-	des_write(MAX_CROSS(link, 24), (priv->hsync ? 0x40 : 0) + 24);	/* invert HS polarity */
-	des_write(MAX_CROSS(link, 25), (priv->vsync ? 0 : 0x40) + 25);	/* invert VS polarity */
-	des_write(MAX_CROSS(link, 26), (priv->hsync ? 0x40 : 0) + 26);	/* invert DE polarity */
+	des_write(MAX_CROSS(link, 24), (priv->hsync ? 0 : 0x40) + 24);	/* invert HS polarity */	//RTX Modify
+	des_write(MAX_CROSS(link, 25), (priv->vsync ? 0 : 0x40) + 25);	/* invert VS polarity */	//RTX Modify
+	des_write(MAX_CROSS(link, 26), (priv->de 	? 0 : 0x40) + 26);	/* invert DE polarity */	//RTX Modify
 }
 
 static void max96712_gmsl1_initial_setup(struct max96712_priv *priv)
@@ -912,10 +916,10 @@ static void max96712_gmsl2_postinit(struct max96712_priv *priv)
 }
 
 static void max96712_gmsl2_link_crossbar_setup(struct max96712_priv *priv, int link, int dt)
-{
-	des_write(MAX_CROSS(link, 24), (priv->hsync ? 0x40 : 0) + 24);	/* invert HS polarity */
-	des_write(MAX_CROSS(link, 25), (priv->vsync ? 0 : 0x40) + 25);	/* invert VS polarity */
-	des_write(MAX_CROSS(link, 26), (priv->hsync ? 0x40 : 0) + 26);	/* invert DE polarity */
+{	
+	des_write(MAX_CROSS(link, 24), (priv->hsync ? 0 : 0x40) + 24);	/* invert HS polarity */	//RTX Modify
+	des_write(MAX_CROSS(link, 25), (priv->vsync ? 0 : 0x40) + 25);	/* invert VS polarity */	//RTX Modify
+	des_write(MAX_CROSS(link, 26), (priv->de 	? 0 : 0x40) + 26);	/* invert DE polarity */	//RTX Modify
 }
 
 static void max96712_gmsl2_fsync_setup(struct max96712_priv *priv)
@@ -1297,6 +1301,8 @@ static int max96712_parse_dt(struct i2c_client *client)
 		priv->hsync = 0;
 	if (of_property_read_u32(np, "maxim,vsync", &priv->vsync))
 		priv->vsync = 1;
+	if (of_property_read_u32(np, "maxim,de", &priv->de))
+		priv->de = 1;		
 	if (of_property_read_u32(np, "maxim,poc-delay", &priv->poc_delay))
 		priv->poc_delay = 50;
 	if (of_property_read_u32(np, "maxim,dt", &priv->dt))
@@ -1320,10 +1326,12 @@ static int max96712_parse_dt(struct i2c_client *client)
 		priv->fsync_period = fsync_period;
 	//	priv->fsync_mode = fsync_mode_default;
 	}
-	if (hsync)
+	if (hsync == 1 || hsync == 0)
 		priv->hsync = hsync;
-	if (!vsync)
+	if (vsync == 1 || vsync == 0)
 		priv->vsync = vsync;
+	if (de == 1 || de == 0)
+		priv->de = de;
 	if (gpio_resetb)
 		priv->gpio_resetb = gpio_resetb;
 	if (active_low_resetb)

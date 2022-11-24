@@ -335,6 +335,7 @@
 		regs = <0x0c 0x0d 0x0e 0x0f>;
 		shutdown-gpios = <&gpio3 2 GPIO_ACTIVE_HIGH>;
 		maxim,links-mipi-map = <1 1 1 1>;
+		maxim,gmsl = <1>;
 
 		poc0-supply = <&vdd_cam0>;
 		poc1-supply = <&vdd_cam1>;
@@ -460,6 +461,7 @@
 		regs = <0x1c 0x1d 0x1e 0x1f>;
 		shutdown-gpios = <&gpio3 3 GPIO_ACTIVE_HIGH>;
 		maxim,links-mipi-map = <1 1 1 1>;
+		maxim,gmsl = <1>;
 
 		poc0-supply = <&vdd_cam4>;
 		poc1-supply = <&vdd_cam5>;

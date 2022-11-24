@@ -69,6 +69,7 @@ struct max96712_priv {
 	int			hven;
 	int			hsync;
 	int			vsync;
+	int			de;
 	int			dt;
 	u64			crossbar;
 	char			cb[16];
@@ -224,6 +225,17 @@ static inline int max96712_write(struct max96712_priv *priv, int reg, int val)
 	return ret;
 }
 
+static inline int max96712_write_n(struct max96712_priv *priv, int reg, int val, int val_len)
+{
+	int ret;
+
+	ret = regmap_raw_write(priv->regmap, reg, &val, val_len);
+	if (ret)
+		dev_dbg(&priv->client->dev, "write register 0x%04x failed (%d)\n", reg, ret);
+
+	return ret;
+}
+
 static inline int max96712_read(struct max96712_priv *priv, int reg, int *val)
 {
 	int ret;
@@ -246,8 +258,9 @@ static inline int max96712_update_bits(struct max96712_priv *priv, int reg, int 
 	return ret;
 }
 
-#define des_read(reg, val)			max96712_read(priv, reg, val)
-#define des_write(reg, val)			max96712_write(priv, reg, val)
+#define des_read(reg, val)					max96712_read(priv, reg, val)
+#define des_write(reg, val)					max96712_write(priv, reg, val)
+#define des_write_n(reg, val_len, val)		max96712_write_n(priv, reg, val, val_len)
 #define des_update_bits(reg, mask, bits)	max96712_update_bits(priv, reg, mask, bits)
 
 static inline int max96712_ser_write(struct max96712_link *link, int reg, int val)

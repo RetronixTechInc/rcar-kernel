@@ -221,26 +221,13 @@
 	status = "okay";
 	clock-frequency = <400000>;
 
-	io_expander0: gpio@20 {
-		compatible = "onnn,pca9654";
-		reg = <0x20>;
-		gpio-controller;
-		#gpio-cells = <2>;
-	};
-
-	io_expander1: gpio@21 {
-		compatible = "onnn,pca9654";
-		reg = <0x21>;
-		gpio-controller;
-		#gpio-cells = <2>;
-	};
-
 	hdmi@4c {
 		compatible = "ite,it6263";
 		reg = <0x4c>;
-		reset-gpio = <&gpio1 0 GPIO_ACTIVE_LOW>;
 		interrupt-parent = <&gpio1>;
 		interrupts = <20 IRQ_TYPE_EDGE_BOTH>;
+		reset-gpio = <&gpio1 0 GPIO_ACTIVE_LOW>;
+		status = "okay";
 
 		ports {
 			#address-cells = <1>;

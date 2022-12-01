@@ -612,6 +612,28 @@ static enum drm_mode_status it6263_mode_valid(struct drm_connector *connector,
 	return MODE_OK;
 }
 
+static irqreturn_t it6263_irq_handler(int irq, void *devid){
+
+	struct it6263 *it6263 = devid;
+	struct drm_connector *connector = &it6263->connector;
+	struct drm_device *dev = connector->dev;
+	int ret;
+
+	mdelay(500);
+
+	ret = it6263_hpd_is_connected(it6263);
+
+	if (ret)
+		it6263->connector.status = connector_status_connected;
+	else
+		it6263->connector.status = connector_status_disconnected;
+
+	drm_kms_helper_hotplug_event(dev);
+
+	return IRQ_HANDLED;
+
+}
+
 static const struct drm_connector_helper_funcs it6263_connector_helper_funcs = {
 	.get_modes = it6263_get_modes,
 	.mode_valid = it6263_mode_valid,
@@ -728,8 +750,12 @@ static int it6263_bridge_attach(struct drm_bridge *bridge)
 		return -ENOTSUPP;
 	}
 
-	it6263->connector.polled = DRM_CONNECTOR_POLL_CONNECT |
-				   DRM_CONNECTOR_POLL_DISCONNECT;
+	if (it6263->hdmi_i2c->irq)
+		it6263->connector.polled = DRM_CONNECTOR_POLL_HPD;
+	else
+		it6263->connector.polled = DRM_CONNECTOR_POLL_CONNECT |
+				          DRM_CONNECTOR_POLL_DISCONNECT;
+
 	ret = drm_connector_init(drm, &it6263->connector,
 				 &it6263_connector_funcs,
 				 DRM_MODE_CONNECTOR_HDMIA);
@@ -874,6 +900,7 @@ static int it6263_probe(struct i2c_client *client,
 	it6263->hdmi_i2c = client;
 	it6263->lvds_i2c = i2c_new_dummy(client->adapter,
 						LVDS_INPUT_CTRL_I2C_ADDR);
+
 	if (!it6263->lvds_i2c) {
 		ret = -ENODEV;
 		goto of_reconfig;
@@ -933,6 +960,16 @@ static int it6263_probe(struct i2c_client *client,
 
 	it6263_lvds_config(it6263);
 	it6263_hdmi_config(it6263);
+
+	if (client->irq) {
+
+		ret = devm_request_threaded_irq(dev, client->irq, NULL,
+						it6263_irq_handler,
+						IRQF_ONESHOT, dev_name(dev),
+						it6263);
+                if (ret)
+			goto unregister_lvds_i2c;
+	}
 
 	it6263->bridge.funcs = &it6263_bridge_funcs;
 	it6263->bridge.of_node = np;

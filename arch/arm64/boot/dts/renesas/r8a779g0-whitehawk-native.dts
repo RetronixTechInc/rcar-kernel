@@ -1,0 +1,85 @@
+// SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+/*
+ * Device Tree Source support Native device
+ * for the White Hawk CPU and Breakout boards
+ *
+ * Copyright (C) 2023 Renesas Electronics Corp.
+ */
+
+/dts-v1/;
+#include "r8a779g0-whitehawk.dts"
+#include "r8a779g0-native.dtsi"
+
+&i2c1 {
+	sn65dsi86_0@2c {
+		status = "okay";
+	};
+
+	max96789@60 {
+		status = "okay";
+	};
+
+	gmsl0: gmsl-deserializer@49 {
+		status = "okay";
+		i2c-mux {
+			i2c@0 {
+				status = "okay";
+			};
+
+			i2c@1 {
+				status = "okay";
+			};
+
+			i2c@2 {
+				status = "okay";
+			};
+
+			i2c@3 {
+				status = "okay";
+			};
+		};
+	};
+
+	gmsl1: gmsl-deserializer@4b {
+		status = "okay";
+		i2c-mux {
+			i2c@0 {
+				status = "okay";
+			};
+
+			i2c@1 {
+				status = "okay";
+			};
+
+			i2c@2 {
+				status = "okay";
+			};
+
+			i2c@3 {
+				status = "okay";
+			};
+		};
+	};
+};
+
+&i2c4 {
+	sn65dsi86_1@2c {
+		status = "okay";
+	};
+};
+
+&du {
+	status = "okay";
+};
+
+&dsi0 {
+	status = "okay";
+};
+
+&dsi1 {
+	status = "okay";
+};
+
+&dsc {
+	status = "okay";
+};

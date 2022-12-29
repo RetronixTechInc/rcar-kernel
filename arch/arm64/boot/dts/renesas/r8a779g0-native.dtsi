@@ -1,0 +1,40 @@
+// SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+/*
+ * Device Tree Source support Native for the White Hawk CPU
+ * boards with R-Car V4H
+ *
+ * Copyright (C) 2023 Renesas Electronics Corp.
+ */
+
+#include <dt-bindings/clock/r8a779g0-cpg-mssr.h>
+#include <dt-bindings/interrupt-controller/arm-gic.h>
+#include <dt-bindings/power/r8a779g0-sysc.h>
+#include <dt-bindings/ipmmu/rcar-ipmmu.h>
+
+/ {
+	soc: soc {
+		/delete-node/du0;
+		/delete-node/du_01;
+		/delete-node/dsi0;
+		/delete-node/dsi0_01;
+		/delete-node/dsi0_02;
+		/delete-node/dsi0_03;
+		/delete-node/dsi0_04;
+		/delete-node/dsi0_05;
+		/delete-node/dsi0_06;
+		/delete-node/dsi0_07;
+		/delete-node/dsi0_08;
+		/delete-node/dsi1;
+		/delete-node/dsi1_01;
+		/delete-node/dsi1_02;
+		/delete-node/dsi1_03;
+		/delete-node/dsi1_04;
+		/delete-node/dsi1_05;
+		/delete-node/dsi1_06;
+		/delete-node/dsi1_07;
+		/delete-node/dsi1_08;
+		/delete-node/doc@feba0000;
+		/delete-node/doc0_01;
+		/delete-node/dsc@feb8d000;
+	};
+};

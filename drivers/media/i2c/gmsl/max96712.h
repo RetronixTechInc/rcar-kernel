@@ -274,6 +274,17 @@ static inline int max96712_ser_write(struct max96712_link *link, int reg, int va
 	return ret;
 }
 
+static inline int max96712_ser_write_n(struct max96712_link *link, int reg, int val, int val_len)
+{
+	int ret;
+
+	ret = regmap_raw_write(link->regmap, reg, &val, val_len);
+	if (ret)
+		dev_dbg(&link->client->dev, "write register 0x%04x failed (%d)\n", reg, ret);
+
+	return ret;
+}
+
 static inline int max96712_ser_read(struct max96712_link *link, int reg, int *val)
 {
 	int ret;
@@ -296,6 +307,7 @@ static inline int max96712_ser_update_bits(struct max96712_link *link, int reg, 
 	return ret;
 }
 
-#define ser_read(reg, val)			max96712_ser_read(link, reg, (int *)val)
-#define ser_write(reg, val)			max96712_ser_write(link, reg, val)
+#define ser_read(reg, val)					max96712_ser_read(link, reg, (int *)val)
+#define ser_write(reg, val)					max96712_ser_write(link, reg, val)
+#define ser_write_n(reg, val_len, val)		max96712_ser_write_n(link, reg, val, val_len)
 #define ser_update_bits(reg, mask, bits)	max96712_ser_update_bits(link, reg, mask, bits)

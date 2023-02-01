@@ -32,7 +32,7 @@
 #include "max96712.h"
 #include "max96712_debug.h"
 
-static char mbus_default[10] = "dvp"; /* mipi, dvp */
+static char mbus_default[10] = "mipi"; /* mipi, dvp */
 
 static int conf_link;
 module_param(conf_link, int, 0644);
@@ -50,11 +50,11 @@ static int fsync_period;
 module_param(fsync_period, int, 0644);
 MODULE_PARM_DESC(fsync_period, " Frame sync period (default: 3.2MHz)");
 
-static int hsync = 0;
+static int hsync = 1;
 module_param(hsync, int, 0644);
 MODULE_PARM_DESC(hsync, " HSYNC invertion (default: 0 - not inverted)");
 
-static int vsync = 0;
+static int vsync = 1;
 module_param(vsync, int, 0644);
 MODULE_PARM_DESC(vsync, " VSYNC invertion (default: 0 - not inverted)");
 
@@ -102,11 +102,13 @@ static char *mbus = mbus_default;
 module_param(mbus, charp, 0644);
 MODULE_PARM_DESC(mbus, " Interfaces mipi,dvp (default: dvp)");
 
-static int gpio0 = -1, gpio1 = -1, gpio7 = -1, gpio8 = -1;
+static int gpio0 = -1, gpio1 = -1, gpio4 = 1, gpio7 = -1, gpio8 = -1;
 module_param(gpio0, int, 0644);
 MODULE_PARM_DESC(gpio0, "  GPIO0 function select (default: GPIO0 tri-state)");
 module_param(gpio1, int, 0644);
 MODULE_PARM_DESC(gpio1, "  GPIO1 function select (default: GPIO1 tri-state)");
+module_param(gpio4, int, 0644);
+MODULE_PARM_DESC(gpio4, "  GPIO4 function select (default: GPIO4 tri-state)");
 module_param(gpio7, int, 0644);
 MODULE_PARM_DESC(gpio7, "  GPIO7 function select (default: GPIO7 tri-state)");
 module_param(gpio8, int, 0644);
@@ -823,9 +825,9 @@ static int max96712_gmsl2_link_serializer_setup(struct max96712_priv *priv, int 
 		 *  FRONTTOP_9	- start Pipes X,Z from CSI_A,CSI_B
 		 */
 
-		ser_write(MAX9295_FRONTTOP_0, 0x71);			/* enable Pipe X from from CSI_A,CSI_B */
-		ser_write(MAX9295_FRONTTOP_12, BIT(6) | priv->dt);	/* primary DT for Pipe X */
-		ser_write(MAX9295_FRONTTOP_13, BIT(6) | MIPI_DT_EMB);	/* secondary DT for Pipe X */
+		ser_write(MAX9295_FRONTTOP_0, 0x71);                    /* enable Pipe X from from CSI_A,CSI_B */
+		ser_write(MAX9295_FRONTTOP_12, BIT(6) | priv->dt);      /* primary DT for Pipe X */
+		ser_write(MAX9295_FRONTTOP_13, BIT(6) | MIPI_DT_EMB);   /* secondary DT for Pipe X */
 	}
 
 	for (i = 0; i < 11; i++) {
@@ -869,7 +871,7 @@ static struct {
 	{0x01,		0x01},		/* FE */
 	{MIPI_DT_YUV8,	MIPI_DT_YUV8},	/* payload data */
 	{MIPI_DT_RAW8,	MIPI_DT_RAW8},
-	{MIPI_DT_RAW12,	MIPI_DT_RAW12},
+	{MIPI_DT_RAW12,	MIPI_DT_RAW8},
 };
 
 static void max96712_gmsl2_pipe_set_source(struct max96712_priv *priv, int pipe, int phy, int in_pipe)
@@ -888,7 +890,7 @@ static void max96712_gmsl2_link_pipe_setup(struct max96712_priv *priv, int link_
 	int in_vc = 0;
 	int i;
 
-	max96712_gmsl2_pipe_set_source(priv, pipe, link_n, 0);			/* route Pipe X only */
+	max96712_gmsl2_pipe_set_source(priv, pipe, link_n, 0);                  /* route Pipe X only */
 
 	if (strcmp(priv->mbus, "dvp") == 0) {
 		des_write(MAX96712_RX0(pipe), 0);				/* stream_id = 0 */
@@ -1035,7 +1037,6 @@ static int max96712_initialize(struct max96712_priv *priv)
 
 		max96712_link_pipe_setup(priv, i);
 		max96712_link_crossbar_setup(priv, i, priv->dt);
-
 		i2c_mux_add_adapter(priv->mux, 0, i, 0);
 		max96712_cc_enable(priv, i, 0);
 	}
@@ -1298,11 +1299,11 @@ static int max96712_parse_dt(struct i2c_client *client)
 	if (of_property_read_u32(np, "maxim,hibw", &priv->hibw))
 		priv->hibw = 0;
 	if (of_property_read_u32(np, "maxim,hsync", &priv->hsync))
-		priv->hsync = 0;
+		priv->hsync = hsync;
 	if (of_property_read_u32(np, "maxim,vsync", &priv->vsync))
-		priv->vsync = 1;
+		priv->vsync = vsync;
 	if (of_property_read_u32(np, "maxim,de", &priv->de))
-		priv->de = 1;		
+		priv->de = de;		
 	if (of_property_read_u32(np, "maxim,poc-delay", &priv->poc_delay))
 		priv->poc_delay = 50;
 	if (of_property_read_u32(np, "maxim,dt", &priv->dt))
@@ -1326,12 +1327,7 @@ static int max96712_parse_dt(struct i2c_client *client)
 		priv->fsync_period = fsync_period;
 	//	priv->fsync_mode = fsync_mode_default;
 	}
-	if (hsync == 1 || hsync == 0)
-		priv->hsync = hsync;
-	if (vsync == 1 || vsync == 0)
-		priv->vsync = vsync;
-	if (de == 1 || de == 0)
-		priv->de = de;
+
 	if (gpio_resetb)
 		priv->gpio_resetb = gpio_resetb;
 	if (active_low_resetb)
@@ -1352,6 +1348,8 @@ static int max96712_parse_dt(struct i2c_client *client)
 		priv->gpio[0] = gpio0;
 	if (gpio1 >= 0)
 		priv->gpio[1] = gpio1;
+	if (gpio4 >= 0)
+		priv->gpio[4] = gpio4;
 	if (gpio7 >= 0)
 		priv->gpio[7] = gpio7;
 	if (gpio8 >= 0)

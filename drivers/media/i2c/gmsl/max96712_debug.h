@@ -353,7 +353,7 @@ int max96712_patgen(struct max96712_priv *priv)
 	des_write(0x1075, 0x50);	/* chkr_rpt_b = 80 */
 	des_write(0x1076, 0x50);	/* chkr_alt = 80 */
 
-	des_write(0x1050, 0xfb);	/* gen_vs,gen_hs,gen_de, vtg[0:1] */
+	des_write(0x1050, 0xe7);	/* gen_vs,gen_hs,gen_de, vtg[0:1] */
 	des_write(0x1051, 0x10);	/* patgen_mode[5:4] = 0b1,checkerboard */
 
 out:

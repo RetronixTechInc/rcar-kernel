@@ -11,6 +11,13 @@
 #include <dt-bindings/gpio/gpio.h>
 #include "camera.dtsi"
 
+#define CAMERA_OV10635 	0
+#define CAMERA_AR0233 	1
+
+#define CAMERA CAMERA_AR0233
+
+
+
 / {
 	model = "Renesas Condor board based on r8a77980";
 	compatible = "renesas,condor", "renesas,r8a77980";
@@ -322,8 +329,21 @@
 		regs = <0x0c 0x0d 0x0e 0x0f>;
 		shutdown-gpios = <&gpio3 2 GPIO_ACTIVE_HIGH>;
 		maxim,links-mipi-map = <1 1 1 1>;
+		
+#if (CAMERA == CAMERA_OV10635)
+		maxim,dt = <0x1e>;
+		maxim,gmsl = <1>;
+		maxim,hsync = <0>;
+		maxim,vsync = <0>;
+		maxim,de = <1>;
+
+#elif (CAMERA == CAMERA_AR0233)
 		maxim,dt = <0x2c>;
 		maxim,gmsl = <2>;
+		maxim,hsync = <1>;
+		maxim,vsync = <1>;
+		maxim,de = <1>;
+#endif
 
 		poc0-supply = <&vdd_cam0>;
 		poc1-supply = <&vdd_cam1>;
@@ -449,7 +469,21 @@
 		regs = <0x1c 0x1d 0x1e 0x1f>;
 		shutdown-gpios = <&gpio3 3 GPIO_ACTIVE_HIGH>;
 		maxim,links-mipi-map = <1 1 1 1>;
+
+#if (CAMERA == CAMERA_OV10635)
+		maxim,dt = <0x1e>;
 		maxim,gmsl = <1>;
+		maxim,hsync = <0>;
+		maxim,vsync = <0>;
+		maxim,de = <1>;
+
+#elif (CAMERA == CAMERA_AR0233)
+		maxim,dt = <0x2c>;
+		maxim,gmsl = <2>;
+		maxim,hsync = <1>;
+		maxim,vsync = <1>;
+		maxim,de = <1>;
+#endif
 
 		poc0-supply = <&vdd_cam4>;
 		poc1-supply = <&vdd_cam5>;

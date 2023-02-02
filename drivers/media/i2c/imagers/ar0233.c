@@ -1,14 +1,3 @@
-/*
- * ON Semiconductor AP020X-AR023X sensor camera driver
- *
- * Copyright (C) 2020 Cogent Embedded, Inc.
- *
- * This program is free software; you can redistribute  it and/or modify it
- * under  the terms of  the GNU General  Public License as published by the
- * Free Software Foundation;  either version 2 of the  License, or (at your
- * option) any later version.
- */
-
 #include <linux/delay.h>
 #include <linux/init.h>
 #include <linux/i2c.h>
@@ -31,8 +20,6 @@ static const int ar0233_i2c_addr[] = {0x10};
 
 #define AR0233_PID		0x0956
 
-
-//#define ar0233_MEDIA_BUS_FMT	MEDIA_BUS_FMT_SRGGB10_1X10
 #define ar0233_MEDIA_BUS_FMT	MEDIA_BUS_FMT_SRGGB12_1X12
 
 struct ar0233_priv {
@@ -63,8 +50,6 @@ static inline struct v4l2_subdev *to_sd(struct v4l2_ctrl *ctrl)
 
 static int max9295_set_regs(struct i2c_client *client, const struct max9295_reg *regs, int nr_regs)
 {
-	printk(KERN_ERR "[ RTX-%s-%d ] nr_regs = %d, ", __func__, __LINE__, nr_regs);
-	
 	struct ar0233_priv *priv = to_ar0233(client);
 	int i = 0;
 
@@ -73,8 +58,6 @@ static int max9295_set_regs(struct i2c_client *client, const struct max9295_reg 
 			mdelay(1000);
 			continue;
 		}
-		
-		//printk(KERN_ERR "[ RTX-%s-%d ] regs[%d].reg = 0x%X ; regs[%d].val = 0x%X\n", __func__, __LINE__, i, regs[i].reg, i, regs[i].val);
 		reg16_write_addr(client, priv->ser_addr, regs[i].reg, regs[i].val);
 	}
 
@@ -92,64 +75,10 @@ static int ar0233_set_regs(struct i2c_client *client,
 			continue;
 		}
 		
-		//printk(KERN_ERR "[ RTX-%s-%d ] regs[%d].reg = 0x%X ; regs[%d].val = 0x%X\n", __func__, __LINE__, i, regs[i].reg, i, regs[i].val);
 		reg16_write16(client, regs[i].reg, regs[i].val);
 	}
 
 	return 0;
-}
-
-static u16 ar0233_ar023x_read(struct i2c_client *client, u16 addr)
-{
-	u16 reg_val = 0;
-
-	reg16_write16(client, 0x0040, 0x8d00);
-	usleep_range(1000, 1500); /* wait 1000 us */
-	reg16_write16(client, 0xfc00, addr);
-	reg16_write16(client, 0xfc02, 0x0200); /* 2 bytes */
-	reg16_write16(client, 0x0040, 0x8d05);
-	usleep_range(1000, 1500); /* wait 1000 us */
-	reg16_write16(client, 0x0040, 0x8d08);
-	usleep_range(1000, 1500); /* wait 1000 us */
-	reg16_read16(client, 0xfc00, &reg_val);
-	reg16_write16(client, 0x0040, 0x8d02);
-	usleep_range(1000, 1500); /* wait 1000 us */
-
-	return reg_val;
-}
-
-static void ar0233_ar023x_write(struct i2c_client *client, u16 addr, u16 val)
-{
-	reg16_write16(client, 0x0040, 0x8d00);
-	usleep_range(1000, 1500); /* wait 1000 us */
-	reg16_write16(client, 0xfc00, addr);
-	reg16_write16(client, 0xfc02, 0x0200 | (val >> 8)); /* 2 bytes */
-	reg16_write16(client, 0xfc04, (val & 0xff) << 8);
-	reg16_write16(client, 0x0040, 0x8d06);
-	usleep_range(1000, 1500); /* wait 1000 us */
-	reg16_write16(client, 0x0040, 0x8d08);
-	usleep_range(1000, 1500); /* wait 1000 us */
-	reg16_write16(client, 0x0040, 0x8d02);
-	usleep_range(1000, 1500); /* wait 1000 us */
-}
-
-static void ar0233_otp_id_read(struct i2c_client *client)
-{
-	struct ar0233_priv *priv = to_ar0233(client);
-	int i;
-
-	/* read camera id from ar023x OTP memory */
-	ar0233_ar023x_write(client, 0x3054, 0x400);
-	ar0233_ar023x_write(client, 0x304a, 0x110);
-	usleep_range(25000, 25500); /* wait 25 ms */
-
-	for (i = 0; i < 6; i += 2) {
-		u16 val = 0;
-		/* first 4 bytes are equal on all ar023x */
-		val = ar0233_ar023x_read(client, 0x3800 + i + 4);
-		priv->id[i]     = val >> 8;
-		priv->id[i + 1] = val & 0xff;
-	}
 }
 
 static int ar0233_s_stream(struct v4l2_subdev *sd, int enable)
@@ -209,15 +138,6 @@ static int ar0233_get_edid(struct v4l2_subdev *sd, struct v4l2_edid *edid)
 {
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
 	struct ar0233_priv *priv = to_ar0233(client);
-
-	ar0233_otp_id_read(client);
-
-	memcpy(edid->edid, priv->id, 6);
-
-	edid->edid[6] = 0xff;
-	edid->edid[7] = client->addr;
-	edid->edid[8] = AR0233_PID >> 8;
-	edid->edid[9] = AR0233_PID & 0xff;
 
 	return 0;
 }
@@ -326,16 +246,6 @@ static struct v4l2_subdev_core_ops ar0233_core_ops = {
 #endif
 };
 
-static int ar0233_change_config(struct i2c_client *client)
-{
-	reg16_write16(client, 0x098e, 0x7c00);
-	usleep_range(1000, 1500); /* wait 1 ms */
-	reg16_write16(client, 0xfc00, 0x2800);
-	reg16_write16(client, 0x0040, 0x8100);
-
-	return 0;
-}
-
 static int ar0233_s_ctrl(struct v4l2_ctrl *ctrl)
 {
 	struct v4l2_subdev *sd = to_sd(ctrl);
@@ -357,24 +267,8 @@ static int ar0233_s_ctrl(struct v4l2_ctrl *ctrl)
 	case V4L2_CID_AUTOGAIN:
 	case V4L2_CID_GAIN:
 	case V4L2_CID_EXPOSURE:
-		break;
 	case V4L2_CID_HFLIP:
-		reg16_read16(client, 0xc846, &val);
-		if (ctrl->val)
-			val |= 0x01;
-		else
-			val &= ~0x01;
-		reg16_write16(client, 0xc846, val);
-		ret = ar0233_change_config(client);
-		break;
 	case V4L2_CID_VFLIP:
-		reg16_read16(client, 0xc846, &val);
-		if (ctrl->val)
-			val |= 0x02;
-		else
-			val &= ~0x02;
-		reg16_write16(client, 0xc846, val);
-		ret = ar0233_change_config(client);
 		break;
 	case V4L2_CID_MIN_BUFFERS_FOR_CAPTURE:
 		ret = 0;
@@ -415,8 +309,6 @@ static ssize_t ar0233_otp_id_show(struct device *dev,
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
 	struct ar0233_priv *priv = to_ar0233(client);
 
-	ar0233_otp_id_read(client);
-
 	return snprintf(buf, 32, "%02x:%02x:%02x:%02x:%02x:%02x\n",
 			priv->id[0], priv->id[1], priv->id[2], priv->id[3], priv->id[4], priv->id[5]);
 }
@@ -429,19 +321,10 @@ static int ar0233_initialize(struct i2c_client *client)
 	u16 pid = 0, rev = 0, val = 0;
 
 
-	{//Rtx Add
-		//printk(KERN_ERR "[ RTX-%s-%d ] priv->ser_addr = 0x%X\n", __func__, __LINE__, priv->ser_addr);		
-
-		//reg16_write_addr(client, priv->ser_addr, MAX9295_REG3, 0x07);
-		//reg16_write_addr(client, priv->ser_addr, MAX9max9295_set_regs295_REG6, 0xbf);
-		//reg16_write_addr(client, priv->ser_addr, MAX9295_REF_VTG0, 0x53);
-		//reg16_write_addr(client, priv->ser_addr, MAX9295_REF_VTG0, 0x51);
-		printk(KERN_ERR "[ RTX-%s-%d ] \n", __func__, __LINE__);		
-
+	{	
 		max9295_set_regs(client, max9295_regs_rtx_1, ARRAY_SIZE(max9295_regs_rtx_1));
 	}
 
-	printk(KERN_ERR "[ RTX-%s-%d ] \n", __func__, __LINE__);
 	setup_i2c_translator(client, priv->ser_addr, ar0233_i2c_addr[0]);
 		
 	/* check product ID */
@@ -451,32 +334,14 @@ static int ar0233_initialize(struct i2c_client *client)
 		dev_dbg(&client->dev, "Product ID error %x\n", pid);
 		return -ENODEV;
 	}
-	printk(KERN_ERR "[ RTX-%s-%d ] pid = 0x%X\n", __func__, __LINE__, pid);
-	{//Rtx Add
+
+	{
 		ar0233_set_regs(client, ar0233_2048x1280_crop_30fps_final, ARRAY_SIZE(ar0233_2048x1280_crop_30fps_final)); 
 	}
 	
-	printk(KERN_ERR "[ RTX-%s-%d ] \n", __func__, __LINE__);
-	//reg16_read16(client, AR0233_REV_REG, &rev);
-	/* Program wizard registers */
-	switch (pid) {
-	case AR0233_PID:
-	//	ar0233_set_regs(client, ar0233_regs_wizard, ARRAY_SIZE(ar0233_regs_wizard));
-		break;
-	}
-	
-	/* Read OTP IDs */
-	//ar0233_otp_id_read(client);
-#if 0
-	/* read resolution used by current firmware */
-	reg16_read16(client, 0xcae4, &val);
-	priv->max_width = val;
-	reg16_read16(client, 0xcae6, &val);
-	priv->max_height = val;
-#else
 	priv->max_width = AR0233_MAX_WIDTH;
 	priv->max_height = AR0233_MAX_HEIGHT;
-#endif
+
 	dev_info(&client->dev, "PID %x (rev%x), res %dx%d, OTP_ID %02x:%02x:%02x:%02x:%02x:%02x\n",
 		 pid, rev, priv->max_width, priv->max_height, priv->id[0], priv->id[1], priv->id[2], priv->id[3], priv->id[4], priv->id[5]);
 
@@ -515,9 +380,7 @@ static int ar0233_parse_dt(struct device_node *np, struct ar0233_priv *priv)
 
 static int ar0233_probe(struct i2c_client *client,
 			const struct i2c_device_id *did)
-{
-	printk(KERN_ERR "[ RTX-%s-%d ] Start========================================================\n", __func__, __LINE__);		
-	
+{	
 	struct ar0233_priv *priv;
 	int ret;
 
@@ -575,7 +438,7 @@ static int ar0233_probe(struct i2c_client *client,
 	ret = ar0233_initialize(client);
 	if (ret < 0)
 		goto cleanup;
-	printk(KERN_ERR "[ RTX-%s-%d ] \n", __func__, __LINE__);
+	
 	priv->rect.left = 0;
 	priv->rect.top = 0;
 	priv->rect.width = priv->max_width;
@@ -591,8 +454,6 @@ static int ar0233_probe(struct i2c_client *client,
 	}
 
 	priv->init_complete = 1;
-
-	printk(KERN_ERR "[ RTX-%s-%d ] End========================================================\n", __func__, __LINE__);
 
 	return 0;
 
@@ -623,7 +484,7 @@ static const struct i2c_device_id ar0233_id[] = {
 MODULE_DEVICE_TABLE(i2c, ar0233_id);
 
 static const struct of_device_id ar0233_of_ids[] = {
-	{ .compatible = "onnn,ar0233", },
+	{ .compatible = "quanta,ar0233", },
 	{ }
 };
 MODULE_DEVICE_TABLE(of, ar0233_of_ids);
@@ -640,6 +501,6 @@ static struct i2c_driver ar0233_i2c_driver = {
 
 module_i2c_driver(ar0233_i2c_driver);
 
-MODULE_DESCRIPTION("Camera glue driver for AP020X");
-MODULE_AUTHOR("Andrey Gusakov");
+MODULE_DESCRIPTION("Camera glue driver for AR0233");
+MODULE_AUTHOR("Retronix");
 MODULE_LICENSE("GPL");

@@ -50,11 +50,11 @@ static int fsync_period;
 module_param(fsync_period, int, 0644);
 MODULE_PARM_DESC(fsync_period, " Frame sync period (default: 3.2MHz)");
 
-static int hsync = 1;
+static int hsync = 0;
 module_param(hsync, int, 0644);
 MODULE_PARM_DESC(hsync, " HSYNC invertion (default: 0 - not inverted)");
 
-static int vsync = 1;
+static int vsync = 0;
 module_param(vsync, int, 0644);
 MODULE_PARM_DESC(vsync, " VSYNC invertion (default: 0 - not inverted)");
 

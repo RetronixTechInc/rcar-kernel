@@ -14,7 +14,8 @@
 #define CAMERA_OV10635 	0
 #define CAMERA_AR0233 	1
 
-#define CAMERA CAMERA_AR0233
+#define CAMERA_2A CAMERA_AR0233			//video0 ~ video3
+#define CAMERA_6B CAMERA_OV10635		//video4 ~ video7
 
 
 
@@ -330,14 +331,14 @@
 		shutdown-gpios = <&gpio3 2 GPIO_ACTIVE_HIGH>;
 		maxim,links-mipi-map = <1 1 1 1>;
 		
-#if (CAMERA == CAMERA_OV10635)
+#if (CAMERA_2A == CAMERA_OV10635)
 		maxim,dt = <0x1e>;
 		maxim,gmsl = <1>;
 		maxim,hsync = <0>;
 		maxim,vsync = <0>;
 		maxim,de = <1>;
 
-#elif (CAMERA == CAMERA_AR0233)
+#elif (CAMERA_2A == CAMERA_AR0233)
 		maxim,dt = <0x2c>;
 		maxim,gmsl = <2>;
 		maxim,hsync = <1>;
@@ -470,14 +471,14 @@
 		shutdown-gpios = <&gpio3 3 GPIO_ACTIVE_HIGH>;
 		maxim,links-mipi-map = <1 1 1 1>;
 
-#if (CAMERA == CAMERA_OV10635)
+#if (CAMERA_6B == CAMERA_OV10635)
 		maxim,dt = <0x1e>;
 		maxim,gmsl = <1>;
 		maxim,hsync = <0>;
 		maxim,vsync = <0>;
 		maxim,de = <1>;
 
-#elif (CAMERA == CAMERA_AR0233)
+#elif (CAMERA_6B == CAMERA_AR0233)
 		maxim,dt = <0x2c>;
 		maxim,gmsl = <2>;
 		maxim,hsync = <1>;

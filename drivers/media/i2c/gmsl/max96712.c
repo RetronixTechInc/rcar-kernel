@@ -863,6 +863,8 @@ static int max96712_gmsl2_link_serializer_setup(struct max96712_priv *priv, int 
 	return 0;
 }
 
+#define RTX_MIPI_OUT_DT_FORCE_TO_RAW8
+
 static struct {
 	int in_dt;
 	int out_dt;
@@ -871,7 +873,11 @@ static struct {
 	{0x01,		0x01},		/* FE */
 	{MIPI_DT_YUV8,	MIPI_DT_YUV8},	/* payload data */
 	{MIPI_DT_RAW8,	MIPI_DT_RAW8},
+#ifndef RTX_MIPI_OUT_DT_FORCE_TO_RAW8
+	{MIPI_DT_RAW12,	MIPI_DT_RAW12},
+#else
 	{MIPI_DT_RAW12,	MIPI_DT_RAW8},
+#endif
 };
 
 static void max96712_gmsl2_pipe_set_source(struct max96712_priv *priv, int pipe, int phy, int in_pipe)

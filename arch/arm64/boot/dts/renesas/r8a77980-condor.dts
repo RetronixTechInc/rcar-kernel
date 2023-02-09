@@ -14,8 +14,8 @@
 #define CAMERA_OV10635 	0
 #define CAMERA_AR0233 	1
 
-#define CAMERA_2A CAMERA_AR0233			//video0 ~ video3
-#define CAMERA_6B CAMERA_OV10635		//video4 ~ video7
+#define CAMERA_2A CAMERA_OV10635		//video0 ~ video3
+#define CAMERA_6B CAMERA_AR0233			//video4 ~ video7
 
 
 

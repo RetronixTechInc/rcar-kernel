@@ -53,6 +53,7 @@ struct max96712_priv {
 	int			n_links;
 	int			links_mask;
 	enum gmsl_mode		gmsl_mode;
+	enum gmsl2_rate	gmsl2_rate;
 	struct max96712_link	*link[MAX96712_MAX_LINKS];
 	struct v4l2_async_subdev *subdevs[MAX96712_MAX_LINKS];
 	struct v4l2_async_notifier notifier;

@@ -12,9 +12,10 @@
 #include "camera.dtsi"
 
 #define CAMERA_OV10635 	0
-#define CAMERA_AR0233 	1
+#define CAMERA_AR0233		1
+#define CAMERA_OX03F10		2
 
-#define CAMERA_2A CAMERA_OV10635		//video0 ~ video3
+#define CAMERA_2A CAMERA_OX03F10		//video0 ~ video3
 #define CAMERA_6B CAMERA_AR0233			//video4 ~ video7
 
 
@@ -337,13 +338,20 @@
 		maxim,hsync = <0>;
 		maxim,vsync = <0>;
 		maxim,de = <1>;
-
+#elif (CAMERA_2A == CAMERA_OX03F10)
+		maxim,dt = <0x2b>;
+		maxim,gmsl = <2>;
+		maxim,hsync = <1>;
+		maxim,vsync = <1>;
+		maxim,de = <1>;
+		maxim,gmsl-rate = <1>;//1 for 3Gbps, 2 for 6Gbps
 #elif (CAMERA_2A == CAMERA_AR0233)
 		maxim,dt = <0x2c>;
 		maxim,gmsl = <2>;
 		maxim,hsync = <1>;
 		maxim,vsync = <1>;
 		maxim,de = <1>;
+		maxim,gmsl-rate = <2>;//1 for 3Gbps, 2 for 6Gbps
 #endif
 
 		poc0-supply = <&vdd_cam0>;
@@ -477,13 +485,20 @@
 		maxim,hsync = <0>;
 		maxim,vsync = <0>;
 		maxim,de = <1>;
-
+#elif (CAMERA_6B == CAMERA_OX03F10)
+		maxim,dt = <0x2b>;
+		maxim,gmsl = <2>;
+		maxim,hsync = <1>;
+		maxim,vsync = <1>;
+		maxim,de = <1>;
+		maxim,gmsl-rate = <1>;//1 for 3Gbps, 2 for 6Gbps
 #elif (CAMERA_6B == CAMERA_AR0233)
 		maxim,dt = <0x2c>;
 		maxim,gmsl = <2>;
 		maxim,hsync = <1>;
 		maxim,vsync = <1>;
 		maxim,de = <1>;
+		maxim,gmsl-rate = <2>;//1 for 3Gbps, 2 for 6Gbps
 #endif
 
 		poc0-supply = <&vdd_cam4>;

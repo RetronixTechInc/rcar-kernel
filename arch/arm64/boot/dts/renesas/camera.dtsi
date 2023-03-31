@@ -11,10 +11,11 @@
 #define LVDS_CAMERA		\
 	"onnn,ap0101",		\
 	"onnn,ap0201",		\
-	"ovti,ov10635",		\
+	"ovti,ov10635",	\
 	"ovti,ov2311",		\
 	"ovti,ov490",		\
 	"ovti,ov495",		\
 	"sony,isx016",		\
 	"sony,isx019",		\
-	"quanta,ar0233"
+	"quanta,ar0233",	\
+	"quanta,OX03F10"

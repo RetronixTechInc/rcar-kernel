@@ -24,7 +24,7 @@
 #define MAX96707_ID			0x45 /* MAX96715: same but lack of HS pin */
 #define MAX96708_ID			0x4C
 #define MAX96712_ID			0x20
-
+#define MAX96717F_ID			0xC8
 #define UB960_ID			0x00 /* strapped */
 
 #define BROADCAST			0x6f
@@ -57,6 +57,8 @@ static inline char* chip_name(int id)
 		return "MAX96707";
 	case MAX96712_ID:
 		return "MAX96712";
+	case MAX96717F_ID:
+		return "MAX96717F";
 	default:
 		return "serializer";
 	}
@@ -65,6 +67,11 @@ static inline char* chip_name(int id)
 enum gmsl_mode {
 	MODE_GMSL1 = 1,
 	MODE_GMSL2,
+};
+
+enum gmsl2_rate {
+	GMSL2_3Gbps = 1,
+	GMSL2_6Gbps,
 };
 
 #define MAXIM_I2C_I2C_SPEED_837KHZ	(0x7 << 2) /* 837kbps */

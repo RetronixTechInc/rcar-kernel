@@ -32,6 +32,7 @@
 #include "max96712.h"
 #include "max96712_debug.h"
 
+#define PIPE_INDEX	2//0:pipeX, 1:pipeY, 2:pipeZ, 3:pipeU
 static char mbus_default[10] = "mipi"; /* mipi, dvp */
 
 static int conf_link;
@@ -734,8 +735,16 @@ static int max96712_gmsl2_get_link_lock(struct max96712_priv *priv, int link_n)
 static void max96712_gmsl2_initial_setup(struct max96712_priv *priv)
 {
 	des_update_bits(MAX96712_REG6, 0xf0, 0xf0);	/* set GMSL2 mode */
-	des_write(MAX96712_REG26, 0x22);		/* 187.5M/6G */
-	des_write(MAX96712_REG27, 0x22);		/* 187.5M/6G */
+	if( priv->gmsl2_rate == GMSL2_6Gbps )
+	{
+		des_write(MAX96712_REG26, 0x22);		/* 187.5M/6G */
+		des_write(MAX96712_REG27, 0x22);		/* 187.5M/6G */
+	}
+	else
+	{
+		des_write(MAX96712_REG26, 0x11);		/* 187.5M/3G */
+		des_write(MAX96712_REG27, 0x11);		/* 187.5M/3G */
+	}
 }
 
 static int max96712_gmsl2_reverse_channel_setup(struct max96712_priv *priv, int link_n)
@@ -765,7 +774,7 @@ static int max96712_gmsl2_reverse_channel_setup(struct max96712_priv *priv, int 
 		int val = 0;
 
 		__reg16_read(ser_addrs[i], 0x000d, &val);	/* read serializer ID */
-		if (val == MAX9295A_ID || val == MAX9295B_ID) {
+		if (val == MAX9295A_ID || val == MAX9295B_ID  || val == MAX96717F_ID) {
 			link->ser_id = val;
 			__reg16_write(ser_addrs[i], 0x0000, link->ser_addr << 1); /* relocate serizlizer on I2C bus */
 			usleep_range(2000, 2500);
@@ -824,10 +833,22 @@ static int max96712_gmsl2_link_serializer_setup(struct max96712_priv *priv, int 
 		 *  MIPI_RX2, MIPI_RX3 - merge PHY1,PHY2 to 1x4-mode
 		 *  FRONTTOP_9	- start Pipes X,Z from CSI_A,CSI_B
 		 */
-
-		ser_write(MAX9295_FRONTTOP_0, 0x71);                    /* enable Pipe X from from CSI_A,CSI_B */
-		ser_write(MAX9295_FRONTTOP_12, BIT(6) | priv->dt);      /* primary DT for Pipe X */
-		ser_write(MAX9295_FRONTTOP_13, BIT(6) | MIPI_DT_EMB);   /* secondary DT for Pipe X */
+		if( PIPE_INDEX == 0 ) //use pipe X
+		{
+			ser_write(MAX9295_FRONTTOP_0, 0x71);                    /* enable Pipe X from from CSI_A,CSI_B */
+			ser_write(MAX9295_FRONTTOP_12, BIT(6) | priv->dt);      /* primary DT for Pipe X */
+			ser_write(MAX9295_FRONTTOP_13, BIT(6) | MIPI_DT_EMB);   /* secondary DT for Pipe X */
+		}
+		else if( PIPE_INDEX == 2 ) //use pipe Z
+		{
+			ser_write(MAX9295_FRONTTOP_0, 0x74);                    /* enable Pipe Z from from CSI_A,CSI_B */
+			ser_write(MAX9295_FRONTTOP_16, BIT(6) | priv->dt);      /* primary DT for Pipe Z */
+			ser_write(MAX9295_FRONTTOP_17, BIT(6) | MIPI_DT_EMB);   /* secondary DT for Pipe Z */
+		}
+		else
+		{
+		
+		}
 	}
 
 	for (i = 0; i < 11; i++) {
@@ -874,8 +895,10 @@ static struct {
 	{MIPI_DT_YUV8,	MIPI_DT_YUV8},	/* payload data */
 	{MIPI_DT_RAW8,	MIPI_DT_RAW8},
 #ifndef RTX_MIPI_OUT_DT_FORCE_TO_RAW8
+	{MIPI_DT_RAW10,	MIPI_DT_RAW10},
 	{MIPI_DT_RAW12,	MIPI_DT_RAW12},
 #else
+	{MIPI_DT_RAW10,	MIPI_DT_RAW8},
 	{MIPI_DT_RAW12,	MIPI_DT_RAW8},
 #endif
 };
@@ -896,7 +919,7 @@ static void max96712_gmsl2_link_pipe_setup(struct max96712_priv *priv, int link_
 	int in_vc = 0;
 	int i;
 
-	max96712_gmsl2_pipe_set_source(priv, pipe, link_n, 0);                  /* route Pipe X only */
+	max96712_gmsl2_pipe_set_source(priv, pipe, link_n, PIPE_INDEX);                  /* route Pipe ? only */
 
 	if (strcmp(priv->mbus, "dvp") == 0) {
 		des_write(MAX96712_RX0(pipe), 0);				/* stream_id = 0 */
@@ -1275,6 +1298,12 @@ static int max96712_parse_dt(struct i2c_client *client)
 
 	if (of_property_read_u32(np, "maxim,gmsl", &priv->gmsl_mode))
 		priv->gmsl_mode = MODE_GMSL2;
+	if( priv->gmsl_mode == MODE_GMSL2 )
+	{
+		if (of_property_read_u32(np, "maxim,gmsl-rate", &priv->gmsl2_rate))
+			priv->gmsl2_rate = GMSL2_6Gbps;
+	}
+
 	if (of_property_read_bool(np, "maxim,stp"))
 		priv->is_coax = 0;
 	else
@@ -1390,8 +1419,12 @@ static int max96712_parse_dt(struct i2c_client *client)
 	}
 
 	if (of_property_read_u32(np, "csi-rate", &csi_rate))
-		csi_rate = 1200;
-
+	{
+		if( priv->gmsl2_rate == GMSL2_6Gbps )
+			csi_rate = 1200;
+		else
+			csi_rate = 600;
+	}
 	for (i = 0; i < priv->n_links; i++)
 		priv->csi_rate[priv->link[i]->out_mipi] = csi_rate;
 

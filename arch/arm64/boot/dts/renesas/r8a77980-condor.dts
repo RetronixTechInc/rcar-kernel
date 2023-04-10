@@ -345,6 +345,7 @@
 		maxim,vsync = <1>;
 		maxim,de = <1>;
 		maxim,gmsl-rate = <1>;//1 for 3Gbps, 2 for 6Gbps
+		csi-rate = <1200>;
 #elif (CAMERA_2A == CAMERA_AR0233)
 		maxim,dt = <0x2c>;
 		maxim,gmsl = <2>;
@@ -492,6 +493,7 @@
 		maxim,vsync = <1>;
 		maxim,de = <1>;
 		maxim,gmsl-rate = <1>;//1 for 3Gbps, 2 for 6Gbps
+		csi-rate = <1200>;
 #elif (CAMERA_6B == CAMERA_AR0233)
 		maxim,dt = <0x2c>;
 		maxim,gmsl = <2>;

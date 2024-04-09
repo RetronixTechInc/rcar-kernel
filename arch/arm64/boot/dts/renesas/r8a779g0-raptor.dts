@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Device Tree Source for the White Hawk CPU boards with R-Car V4H
+ * Device Tree Source for the Raptor boards with R-Car V4H
  *
  * Copyright (C) 2021 Renesas Electronics Corp.
  */
@@ -10,8 +10,8 @@
 #include <dt-bindings/media/r8a779g0-csi2.h>
 
 / {
-	model = "Renesas White Hawk CPU boards based on r8a779g0";
-	compatible = "renesas,whitehawk-cpu", "renesas,r8a779g0";
+	model = "Renesas Raptor board based on r8a779g0";
+	compatible = "renesas,raptor-cpu", "renesas,r8a779g0";
 
 	aliases {
 		ethernet0 = &avb0;
@@ -1026,9 +1026,9 @@
 	status = "okay";
 	clock-frequency = <400000>;
 
-	U40: eeprom@50 {
+	U40: eeprom@53 {
 		compatible = "rohm,br24g01", "atmel,24c01";
-		label = "cpu-board";
+		label = "carrier-board";
 		reg = <0x53>;
 		pagesize = <8>;
 	};

@@ -110,6 +110,7 @@ static void max96789_preinit(struct max96789_priv *priv)
 	max96789_update_bits(priv, MAX96789_CTRL0, BIT(7), BIT(7));	
 	usleep_range(10000, 20000);
 	
+	//max96789_write_reg(priv, MAX96789_GPIO_A(5), 0x81);	// CFG1 power up
 	max96789_write_reg(priv, MAX96789_GPIO_A(0), 0x84);	// GPIO_RX
 	max96789_write_reg(priv, MAX96789_GPIO_C(0), 0x0B);	// GPIO_RX_ID
 	max96789_write_reg(priv, MAX96789_GPIO_A(1), 0x63);	// GPIO_TX
@@ -125,7 +126,7 @@ static void max96789_preinit(struct max96789_priv *priv)
 	/* I2C-to-I2C Slave Timeout Setting */
 	max96789_write_reg(priv, MAX96789_I2C_0, 0x01);
 	// Timeout = 1ms, 397Kbps - set for I2C fast or fast-mode plus speed
-	max96789_write_reg(priv, MAX96789_I2C_0, 0x51);
+	max96789_write_reg(priv, MAX96789_I2C_1, 0x51);
 	
 	// Link AB
 	max96789_update_bits(priv, MAX96789_CTRL1, 0x05, 0x05);
@@ -137,6 +138,7 @@ static void max96789_gmsl2_initial_setup(struct max96789_priv *priv)
 {
 	max96789_update_bits(priv, MAX96789_REG4, 0x50, 0x50);
 	max96789_write_reg(priv, MAX96789_REG1, 0x08);
+	max96789_write_reg(priv, MAX96789_REG2, BIT(4));
 }
 
 static int max96789_mipi_setup(struct max96789_priv *priv)
@@ -196,6 +198,9 @@ static void max96789_gmsl2_link_pipe_setup(struct max96789_priv *priv, int link_
 	int in_vc = 0;
 	int i;
 
+	// AUTO_LINK = 0, link A is selected
+	max96789_update_bits(priv, MAX96789_CTRL0, BIT(4), BIT(4));	
+		
 	// packets are transmitted over GMSL A
 	max96789_write_reg(priv, MAX96789_VIDEOX_TX3(0), 0x10);
 
@@ -206,7 +211,12 @@ static void max96789_gmsl2_link_pipe_setup(struct max96789_priv *priv, int link_
 	max96789_pipe_override(priv, pipe, dt, in_vc);
 	usleep_range(2000, 5000);
 	
+	// LINK A remote wake-up enable
+	max96789_write_reg(priv, MAX96789_PWR4, 0x10);
 
+	// LINK A is enabled
+	max96789_update_bits(priv, MAX96789_REG4, 0x30, 0x10);
+	
 	//max96712_write_reg(priv, MAX96712_RX0(pipe), 0);
 	//max96712_write_reg(priv, MAX_VIDEO_RX0(pipe), 0x00);
 	//max96712_pipe_override(priv, pipe, dt, in_vc);

@@ -34,7 +34,13 @@
 #define MAX96789_VTX_Z(n)			(MAX96789_VTX_BASE(2) + 0x18 + n)
 #define MAX96789_VTX_U(n)			(MAX96789_VTX_BASE(3) + 0x18 + n)
 
-#define MIPI_DT_RGB888			0x24
+#define MIPI_DT_RGB888				0x24
+
+#define MAX96789_HS_VS(n)			(0x55D + n)
+#define MAX96789_HS_VS_X			MAX96789_HS_VS(0)
+#define MAX96789_HS_VS_Y			MAX96789_HS_VS(1)
+#define MAX96789_HS_VS_Z			MAX96789_HS_VS(2)
+#define MAX96789_HS_VS_U			MAX96789_HS_VS(3)
 
 struct max96789_priv {
 	struct device *dev;

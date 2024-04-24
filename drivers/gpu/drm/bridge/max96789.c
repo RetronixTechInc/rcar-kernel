@@ -76,7 +76,8 @@ static int max96789_patgen(struct max96789_priv *priv, int pat_flags)
 	max96789_write_n(priv, MAX96789_VTX_X(5) , 3, vs_high); 
 	max96789_write_n(priv, MAX96789_VTX_X(8) , 3, vs_low);
 	max96789_write_n(priv, MAX96789_VTX_X(14), 2, hs_high);
-	max96789_write_n(priv, MAX96789_VTX_X(16), 2, hs_low);	
+	max96789_write_n(priv, MAX96789_VTX_X(16), 2, hs_low);
+	max96789_write_n(priv, MAX96789_VTX_X(18), 2, vtotal);	
 	max96789_write_n(priv, MAX96789_VTX_X(23), 2, de_high);		
 	max96789_write_n(priv, MAX96789_VTX_X(25), 2, de_low);		
 	max96789_write_n(priv, MAX96789_VTX_X(27), 2, de_cnt);		
@@ -97,7 +98,7 @@ static int max96789_patgen(struct max96789_priv *priv, int pat_flags)
 	
 	/* Select pattern : 0x10 is gradient, 0x01 is chessboard, 
 	 * 0x00 is pattern generator disabled - use video from the serializer input */
-	max96789_write_reg(priv, MAX96789_VTX_X(29), pat_flags == 1 ? 0x10 : 0x01);
+	max96789_write_reg(priv, MAX96789_VTX_X(29), pat_flags == 1 ? 0x02 : 0x01);
 
 	return ret;
 }
@@ -110,18 +111,24 @@ static void max96789_preinit(struct max96789_priv *priv)
 	max96789_update_bits(priv, MAX96789_CTRL0, BIT(7), BIT(7));	
 	usleep_range(10000, 20000);
 	
-	//max96789_write_reg(priv, MAX96789_GPIO_A(5), 0x81);	// CFG1 power up
-	max96789_write_reg(priv, MAX96789_GPIO_A(0), 0x84);	// GPIO_RX
-	max96789_write_reg(priv, MAX96789_GPIO_C(0), 0x0B);	// GPIO_RX_ID
-	max96789_write_reg(priv, MAX96789_GPIO_A(1), 0x63);	// GPIO_TX
-	max96789_write_reg(priv, MAX96789_GPIO_B(1), 0x2C);	// GPIO_TX_ID
+	max96789_write_reg(priv, MAX96789_GPIO_A(0), 0x12);	// MFP0 TX
+	
+	//max96789_write_reg(priv, MAX96789_GPIO_A(2), 0x92);	// MFP2 TX
+	
+	//max96789_write_reg(priv, MAX96789_GPIO_A(3), 0x92);	// MFP2 TX
+	//max96789_write_reg(priv, MAX96789_GPIO_A(7), 0x92);	// MFP2 TX
+	//max96789_write_reg(priv, MAX96789_GPIO_A(8), 0x92);	// MFP2 TX
+	//max96789_write_reg(priv, MAX96789_GPIO_A(9), 0x92);	// MFP2 TX
+	
+	//max96789_write_reg(priv, MAX96789_GPIO_A(1), 0x63);	// GPIO_TX
+	//max96789_write_reg(priv, MAX96789_GPIO_B(1), 0x2C);	// GPIO_TX_ID
 	
 	max96789_write_reg(priv, MAX96789_REG5, 0x40);	// ERRB output to GPIO
 	usleep_range(10000, 20000);
 	
 	/* enable internal regulator for 1.2V VDD supply */
-	max96789_update_bits(priv, MAX96789_CTRL0, BIT(2), BIT(2));	// REG_EN
-	max96789_update_bits(priv, MAX96789_CTRL2, BIT(4), BIT(4));	// enable VDD LDO regulator
+	max96789_update_bits(priv, MAX96789_CTRL0, BIT(2), BIT(2));	/* REG_ENABLE = 1 */
+	max96789_update_bits(priv, MAX96789_CTRL2, BIT(4), BIT(4));	/* REG_MNL = 1 */
 	
 	/* I2C-to-I2C Slave Timeout Setting */
 	max96789_write_reg(priv, MAX96789_I2C_0, 0x01);
@@ -130,15 +137,14 @@ static void max96789_preinit(struct max96789_priv *priv)
 	
 	// Link AB
 	max96789_update_bits(priv, MAX96789_CTRL1, 0x05, 0x05);
-	max96789_update_bits(priv, MAX96789_REG4, 0x50, 0);
+	max96789_update_bits(priv, MAX96789_REG4, 0xF0, 0);
 	
 }
 
 static void max96789_gmsl2_initial_setup(struct max96789_priv *priv)
 {
-	max96789_update_bits(priv, MAX96789_REG4, 0x50, 0x50);
+	max96789_update_bits(priv, MAX96789_REG4, 0xF0, 0xF0);
 	max96789_write_reg(priv, MAX96789_REG1, 0x08);
-	max96789_write_reg(priv, MAX96789_REG2, BIT(4));
 }
 
 static int max96789_mipi_setup(struct max96789_priv *priv)
@@ -146,34 +152,80 @@ static int max96789_mipi_setup(struct max96789_priv *priv)
 	// DSI port A selection for video pipeline X
 	max96789_write_reg(priv, MAX96789_FRONTTOP_0, 0x5E);	
 	
+	// Forces the MIPI receiver to start
+	max96789_update_bits(priv, MAX96789_FRONTTOP_29, BIT(7), BIT(7));
+	
+	// MIPI Rx 2x4 only A
+	max96789_update_bits(priv, MAX96789_MIPI_RX0, 0x0F, 0x0C);
+	
+	// 4 data lanes
+	max96789_update_bits(priv, MAX96789_MIPI_RX1, 0x33, 0x33);
+	
+	// PHY0 D0 is lane 2, PHY0 D1 is lane 3
+	// PHY1 D0 is lane 0, PHY1 D1 is lane 1
+	max96789_update_bits(priv, MAX96789_MIPI_RX2, 0xFF, 0x4E);
+	
+	max96789_update_bits(priv, MAX96789_MIPI_RX8, 0xFF, 0xC0);
+	
+	// ----DSI Controller 0
+	// controller 0 dsi video mode
+	max96789_update_bits(priv, MAX96789_MIPI_DSI0, 0xF8, 0xC8);
+	
+	//----------------
+	// DE length in number of PCLK cycles, 768 * 1280
+	//max96789_update_bits(priv, MAX96789_MIPI_DSI1, 0xFF, 0x00);
+	//max96789_update_bits(priv, MAX96789_MIPI_DSI2, 0xFF, 0x03);
+	
+	// HS pulse width in number of PCLK cycles, hsa	 = 14
+	max96789_update_bits(priv, MAX96789_MIPI_DSI5, 0xFF, 0x0E);
+	max96789_update_bits(priv, MAX96789_MIPI_DSI7, 0x0F, 0x00);
+	
+	// VS pulse width in number of PCLK cycles, vsa	 = 16
+	max96789_update_bits(priv, MAX96789_MIPI_DSI6, 0xFF, 0x10);
+	max96789_update_bits(priv, MAX96789_MIPI_DSI7, 0xF0, 0x00);
+	
+	// high-speed Rx timeout
+	max96789_update_bits(priv, MAX96789_MIPI_DSI10, 0xFF, 0x00);
+	max96789_update_bits(priv, MAX96789_MIPI_DSI11, 0xFF, 0x00);
+	max96789_update_bits(priv, MAX96789_MIPI_DSI12, 0xFF, 0x00);
+	
+	// Low-power Tx timeout
+	max96789_update_bits(priv, MAX96789_MIPI_DSI13, 0xFF, 0x00);
+	max96789_update_bits(priv, MAX96789_MIPI_DSI14, 0xFF, 0x00);
+	max96789_update_bits(priv, MAX96789_MIPI_DSI15, 0xFF, 0x00);
+	//----------------
+		
+	// vc = 0
+	max96789_update_bits(priv, MAX96789_MIPI_DSI8, 0xC4, 0x04);
+	
+	// DPI deskew
+	max96789_update_bits(priv, MAX96789_MIPI_DSI36, 0xC3, 0xC3);
+	
+	// VFP = 20
+	max96789_update_bits(priv, MAX96789_MIPI_DSI37, 0xFF, 0x14);	
+	max96789_update_bits(priv, MAX96789_MIPI_DSI38, 0x0F, 0x00);
+	
+	// VBP = 20
+	max96789_update_bits(priv, MAX96789_MIPI_DSI38, 0xF0, 0x14);	
+	max96789_update_bits(priv, MAX96789_MIPI_DSI39, 0xFF, 0x00);
+	
+	// vertical active window size
+	max96789_update_bits(priv, MAX96789_MIPI_DSI40, 0xFF, 0x00);
+	max96789_update_bits(priv, MAX96789_MIPI_DSI41, 0xFF, 0x03);
+	
+	// HFP = 200
+	max96789_update_bits(priv, MAX96789_MIPI_DSI42, 0xFF, 0xC8);
+	max96789_update_bits(priv, MAX96789_MIPI_DSI43, 0x0F, 0x00);
 
-	//max96712_write_reg(priv, MAX_MIPI_PHY0, 0x04);
-	//max96712_write_reg(priv, MAX_MIPI_PHY3, 0xe4);
-	//max96712_write_reg(priv, MAX_MIPI_PHY4, 0xe4);
-
-	//if (priv->cphy_connection) 
-	//{
-		//max96712_write_reg(priv, MAX_MIPI_TX10(1), 0xa0);
-		//max96712_write_reg(priv, MAX_MIPI_TX10(2), 0xa0);
-		//max96712_write_reg(priv, MAX_MIPI_PHY13, 0x3F);
-		//max96712_write_reg(priv, MAX_MIPI_PHY14, 0x7D);
-	//} 
-	//else 
-	//{
-		//max96712_write_reg(priv, MAX_MIPI_TX10(1), 0xc0);
-		//max96712_write_reg(priv, MAX_MIPI_TX10(2), 0xc0);
-	//}
-
-	//max96712_update_bits(priv, MAX_BACKTOP22(0), 0x3f, ((MAX96712_DPLL_FREQ / 100) & 0x1f) | BIT(5));
-	//max96712_update_bits(priv, MAX_BACKTOP25(0), 0x3f, ((MAX96712_DPLL_FREQ / 100) & 0x1f) | BIT(5));
-	//max96712_update_bits(priv, MAX_BACKTOP28(0), 0x3f, ((MAX96712_DPLL_FREQ / 100) & 0x1f) | BIT(5));
-	//max96712_update_bits(priv, MAX_BACKTOP31(0), 0x3f, ((MAX96712_DPLL_FREQ / 100) & 0x1f) | BIT(5));
-
-	//max96712_update_bits(priv, MAX_MIPI_PHY2, 0xf0, 0xf0);
-	//if (priv->phy_pol_inv)
-		//max96712_write_reg(priv, MAX_MIPI_PHY5, 0x10);
-
-	//usleep_range(10000, 20000);
+	// HBP = 6
+	max96789_update_bits(priv, MAX96789_MIPI_DSI43, 0xF0, 0x06);
+	max96789_update_bits(priv, MAX96789_MIPI_DSI44, 0xFF, 0x00);
+	
+	// horizontal active window size
+	max96789_update_bits(priv, MAX96789_MIPI_DSI45, 0xFF, 0x00);
+	max96789_update_bits(priv, MAX96789_MIPI_DSI46, 0x1F, 0x0F);
+	
+	usleep_range(5000, 10000);
 
 	return 0;
 }
@@ -183,8 +235,16 @@ static void max96789_pipe_override(struct max96789_priv *priv,
 								   unsigned int dt, unsigned int vc)
 {
 	// EN virtual channel, bpp, datatype for video pipeline X
-	max96789_update_bits(priv, MAX96789_FRONTTOP_20, 0xFF, 0xA8);
-	max96789_update_bits(priv, MAX96789_FRONTTOP_25, 0x3F, dt);
+	max96789_update_bits(priv, MAX96789_FRONTTOP_20, 0xFF, 0xB8);
+	
+	//// EN virtual channel, bpp, datatype for video pipeline Y
+	//max96789_update_bits(priv, MAX96789_FRONTTOP_20, 0xFF, 0xB8);
+	
+	// data type for video channel X
+	max96789_update_bits(priv, MAX96789_FRONTTOP_25, 0x3F, 0x30);
+	
+	//// data type for video channel Y
+	//max96789_update_bits(priv, MAX96789_FRONTTOP_26, 0x3F, 0x30);
 	
 	// video pipe crossbar (X->X, Y->Y, Z->Z, U->U)
 	max96789_update_bits(priv, MAX96789_FRONTTOP_30, 0xFF, 0xE4);
@@ -202,10 +262,10 @@ static void max96789_gmsl2_link_pipe_setup(struct max96789_priv *priv, int link_
 	max96789_update_bits(priv, MAX96789_CTRL0, BIT(4), BIT(4));	
 		
 	// packets are transmitted over GMSL A
-	max96789_write_reg(priv, MAX96789_VIDEOX_TX3(0), 0x10);
+	max96789_write_reg(priv, MAX96789_TX3(0), 0x10);
 
 	// start video pipe X from DSI port A
-	max96789_write_reg(priv, MAX96789_FRONTTOP_9, 0x00);
+	max96789_write_reg(priv, MAX96789_FRONTTOP_9, 0x01);
 	usleep_range(2000, 5000);
 	
 	max96789_pipe_override(priv, pipe, dt, in_vc);
@@ -217,26 +277,98 @@ static void max96789_gmsl2_link_pipe_setup(struct max96789_priv *priv, int link_
 	// LINK A is enabled
 	max96789_update_bits(priv, MAX96789_REG4, 0x30, 0x10);
 	
-	//max96712_write_reg(priv, MAX96712_RX0(pipe), 0);
-	//max96712_write_reg(priv, MAX_VIDEO_RX0(pipe), 0x00);
-	//max96712_pipe_override(priv, pipe, dt, in_vc);
-	//usleep_range(2000, 5000);
+	// CRC bpp from BPP bitfield
+	max96789_write_reg(priv, MAX96789_VIDEO_TX0(0), 0x68);
+	// bpp
+	max96789_update_bits(priv, MAX96789_VIDEO_TX1(0), 0x3F, 0x18);
+	// mask video with DE
+	//max96789_update_bits(priv, MAX96789_VIDEO_TX6(0), BIT(6), BIT(6));
+}
 
-	//max96712_write_reg(priv, MAX_MIPI_TX11(pipe), 0x00);	/* disable all mappings */
-	//max96712_write_reg(priv, MAX_MIPI_TX12(pipe), 0x00);
-	
-////printk("[gmsl2_link_pipe_setup] pipe: %d, link_n: %d, in_vc: %d\n", pipe, link_n, in_vc);
-	//for (i = 0; i < ARRAY_SIZE(gmsl2_pipe_maps); i++) 
+static void max96789_reset_oneshot(struct max96789_priv *priv, int mask)
+{
+	int timeout;
+	u8 val;
+
+	// reset link
+	max96789_update_bits(priv, MAX96789_CTRL0, 0x60, 0x60);	
+
+	//mask &= 0x0f;
+	//max96712_update_bits(priv, MAX96712_CTRL1, mask, mask);
+
+	///* wait for one-shot bit self-cleared */
+	//for (timeout = 0; timeout < 100; timeout++) 
 	//{
-		//max96712_mapping_pipe_to_mipi(priv, pipe, i,							/* pipe, map# */
-									  //gmsl2_pipe_maps[i].in_dt, in_vc,			/* src DT, VC */
-									  //gmsl2_pipe_maps[i].out_dt, link->out_vc,	/* dst DT, VC */
-									  //link->out_mipi);							/* dst MIPI PHY */
+		//max96712_read(priv, MAX96712_CTRL1, &val);
+		//if (!(val & mask))
+			//break;
+
+		//mdelay(1);
 	//}
 
-	//link->pipes_mask |= BIT(pipe);
-	
+	//if (val & mask)
+		//dev_err(&priv->client->dev, "Failed reset oneshot 0x%x\n", mask);
+}
 
+static int max96789_gmsl2_get_link_lock(struct max96789_priv *priv, int link_n)
+{
+	u8 val;
+
+	max96789_read(priv, MAX96789_CTRL3, &val);
+
+	return !!(val & BIT(3));
+}
+
+static int max96789_gmsl2_reverse_channel_setup(struct max96789_priv *priv, int link_n)
+{
+	//struct max96712_link *link = priv->link[link_n];
+	int des_addrs[] = {0x40, 0x42, 0x60, 0x62};	/* possible MAX9295 addresses on i2c bus */
+	int timeout = 100;
+	int ret = 0;
+	int val = 0, i, j = 0;
+
+	max96789_update_bits(priv, MAX96789_REG4, 0x50, 0x40);
+	
+	max96789_reset_oneshot(priv, 0);
+
+	/*
+	 * wait the link to be established,
+	 * indicated when status bit LOCKED goes high
+	 */
+	for (; timeout > 0; timeout--) 
+	{
+		if (max96789_gmsl2_get_link_lock(priv, 0))
+			break;
+		mdelay(1);
+	}
+
+	if (!timeout) 
+	{
+		ret = -ETIMEDOUT;
+		//goto out;
+	}
+
+	for (i = 0; i < ARRAY_SIZE(des_addrs); i++) 
+	{
+		/* read deserializer ID */
+		//__reg16_read(des_addrs[i], 0x000d, &val);
+		//if (val == MAX9295A_ID || val == MAX9295B_ID) 
+		//{
+			//dev_dbg(&priv->client->dev, "ID val:0x%x>\n", val);
+			//link->des_id = val;
+			 ///* relocate deserizlizer on I2C bus */
+			//__reg16_write(des_addrs[i], 0x0000, link->des_addr << 1);
+			//usleep_range(2000, 2500);
+			//j = i;
+		//}
+	}
+
+
+	max96789_write_reg(priv, MAX96789_REG2, BIT(4));
+	
+	//priv->links_mask |= BIT(link_n);
+
+	return ret;
 }
 
 static void max96789_initialize(struct max96789_priv *priv)
@@ -250,6 +382,7 @@ static void max96789_initialize(struct max96789_priv *priv)
 	max96789_mipi_setup(priv);	// MIPI-DSI
 
 	max96789_gmsl2_link_pipe_setup(priv, 0);
+	max96789_gmsl2_reverse_channel_setup(priv, 0);
 	
 	///* Start all cameras. */
 	//for_each_source(priv, source) 
@@ -264,6 +397,8 @@ static void max96789_initialize(struct max96789_priv *priv)
 	//}
 	//max96712_gmsl2_fsync_setup(priv);
 	
+	//max967XX_set_regs(priv, 0);
+		
 	if (DEBUG_COLOR_PATTERN == 1)
 	{
 		printk("[max96789_patgen]: %d\n", __LINE__);
@@ -376,6 +511,7 @@ static int max96789_bridge_probe(struct i2c_client *client)
 	i2c_set_clientdata(client, priv);
 	
 	max96789_initialize(priv);
+
 
 	ret = drm_of_find_panel_or_bridge(priv->dev->of_node, 1, 0,
 				NULL, &priv->next_bridge);

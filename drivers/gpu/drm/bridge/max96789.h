@@ -8,6 +8,7 @@
 #define MAX96789_CTRL0 				0X10
 #define MAX96789_CTRL1 				0X11
 #define MAX96789_CTRL2				0X12
+#define MAX96789_CTRL3				0x13
 
 #define MAX96789_GPIO_BASE(n)		(0x2BE + n)
 #define MAX96789_GPIO_A(n) 			(MAX96789_GPIO_BASE(0) + (3 * n))
@@ -21,12 +22,51 @@
 #define MAX96789_FRONTTOP_9			0x311
 #define MAX96789_FRONTTOP_20		0x31C
 #define MAX96789_FRONTTOP_25		0x321
+#define MAX96789_FRONTTOP_29		0x325
 #define MAX96789_FRONTTOP_30		0x326
 
-#define MAX96789_VIDEO_TX_BASE(n)	(0x50 + n * 4)
-#define MAX96789_VIDEOX_TX0(n)		(MAX96789_VIDEO_TX_BASE(n) + 0)
-#define MAX96789_VIDEOX_TX1(n)		(MAX96789_VIDEO_TX_BASE(n) + 1)
-#define MAX96789_VIDEOX_TX3(n)		(MAX96789_VIDEO_TX_BASE(n) + 3)
+#define MAX96789_MIPI_RX0			0x330
+#define MAX96789_MIPI_RX1			0x331
+#define MAX96789_MIPI_RX2			0x332
+#define MAX96789_MIPI_RX8			0x338
+
+// Controller 0
+#define MAX96789_MIPI_DSI0			0x380
+#define MAX96789_MIPI_DSI1			0x381
+#define MAX96789_MIPI_DSI2			0x382
+#define MAX96789_MIPI_DSI5			0x385
+#define MAX96789_MIPI_DSI6			0x386
+#define MAX96789_MIPI_DSI7			0x387
+#define MAX96789_MIPI_DSI8			0x388
+#define MAX96789_MIPI_DSI9			0x389
+#define MAX96789_MIPI_DSI10			0x38A
+#define MAX96789_MIPI_DSI11			0x38B
+#define MAX96789_MIPI_DSI12			0x38C
+#define MAX96789_MIPI_DSI13			0x38D
+#define MAX96789_MIPI_DSI14			0x38E
+#define MAX96789_MIPI_DSI15			0x38F
+#define MAX96789_MIPI_DSI36			0x3A4
+#define MAX96789_MIPI_DSI37			0x3A5
+#define MAX96789_MIPI_DSI38			0x3A6
+#define MAX96789_MIPI_DSI39			0x3A7
+#define MAX96789_MIPI_DSI40			0x3A8
+#define MAX96789_MIPI_DSI41			0x3A9
+#define MAX96789_MIPI_DSI42			0x3AA
+#define MAX96789_MIPI_DSI43			0x3AB
+#define MAX96789_MIPI_DSI44			0x3AC
+#define MAX96789_MIPI_DSI45			0x3AD
+#define MAX96789_MIPI_DSI46			0x3AE
+
+#define MAX96789_TX_BASE(n)			(0x50 + n * 4)
+#define MAX96789_TX0(n)				(MAX96789_TX_BASE(n) + 0)
+#define MAX96789_TX1(n)				(MAX96789_TX_BASE(n) + 1)
+#define MAX96789_TX3(n)				(MAX96789_TX_BASE(n) + 3)
+
+#define MAX96789_VIDEO_TX_BASE(n)	(0x100 + n * 8)
+#define MAX96789_VIDEO_TX0(n)		(MAX96789_VIDEO_TX_BASE(n) + 0)
+#define MAX96789_VIDEO_TX1(n)		(MAX96789_VIDEO_TX_BASE(n) + 1)
+#define MAX96789_VIDEO_TX2(n)		(MAX96789_VIDEO_TX_BASE(n) + 2)
+#define MAX96789_VIDEO_TX3(n)		(MAX96789_VIDEO_TX_BASE(n) + 6)
 
 #define MAX96789_VTX_BASE(n)		(0x1B0 + 0x43 * n)
 #define MAX96789_VTX_X(n)			(MAX96789_VTX_BASE(0) + 0x18 + n)
@@ -41,6 +81,9 @@
 #define MAX96789_HS_VS_Y			MAX96789_HS_VS(1)
 #define MAX96789_HS_VS_Z			MAX96789_HS_VS(2)
 #define MAX96789_HS_VS_U			MAX96789_HS_VS(3)
+
+#define REG8_NUM_RETRIES		1 /* number of read/write retries */
+#define REG16_NUM_RETRIES		10 /* number of read/write retries */
 
 struct max96789_priv {
 	struct device *dev;
@@ -360,119 +403,119 @@ static inline int max96789_update_bits(struct max96789_priv *priv, u16 reg,
 	//return ret < 0 ? ret : 0;
 //}
 
-//static inline int reg8_read_addr(struct i2c_client *client, int addr,
-				 //u8 reg, u8 *val)
-//{
-	//int ret, retries;
-	//union i2c_smbus_data data;
+static inline int reg8_read_addr(struct i2c_client *client, int addr,
+				 u8 reg, u8 *val)
+{
+	int ret, retries;
+	union i2c_smbus_data data;
 
-	//for (retries = REG8_NUM_RETRIES; retries; retries--) {
-		//ret = i2c_smbus_xfer(client->adapter, addr, client->flags,
-				     //I2C_SMBUS_READ, reg,
-				     //I2C_SMBUS_BYTE_DATA, &data);
-		//if (!(ret < 0))
-			//break;
-	//}
+	for (retries = REG8_NUM_RETRIES; retries; retries--) {
+		ret = i2c_smbus_xfer(client->adapter, addr, client->flags,
+				     I2C_SMBUS_READ, reg,
+				     I2C_SMBUS_BYTE_DATA, &data);
+		if (!(ret < 0))
+			break;
+	}
 
-	//if (ret < 0) {
-		//dev_dbg(&client->dev,
-			//"read fail: chip 0x%x register 0x%x: %d\n",
-			//addr, reg, ret);
-	//} else {
-		//*val = data.byte;
-	//}
+	if (ret < 0) {
+		dev_dbg(&client->dev,
+			"read fail: chip 0x%x register 0x%x: %d\n",
+			addr, reg, ret);
+	} else {
+		*val = data.byte;
+	}
 
-	//return ret < 0 ? ret : 0;
-//}
+	return ret < 0 ? ret : 0;
+}
 
-//static inline int reg8_write_addr(struct i2c_client *client, u8 addr,
-				  //u8 reg, u8 val)
-//{
-	//int ret, retries;
-	//union i2c_smbus_data data;
+static inline int reg8_write_addr(struct i2c_client *client, u8 addr,
+				  u8 reg, u8 val)
+{
+	int ret, retries;
+	union i2c_smbus_data data;
 
-	//data.byte = val;
+	data.byte = val;
 
-	//for (retries = REG8_NUM_RETRIES; retries; retries--) {
-		//ret = i2c_smbus_xfer(client->adapter, addr, client->flags,
-				     //I2C_SMBUS_WRITE, reg,
-				     //I2C_SMBUS_BYTE_DATA, &data);
-		//if (!(ret < 0))
-			//break;
-	//}
+	for (retries = REG8_NUM_RETRIES; retries; retries--) {
+		ret = i2c_smbus_xfer(client->adapter, addr, client->flags,
+				     I2C_SMBUS_WRITE, reg,
+				     I2C_SMBUS_BYTE_DATA, &data);
+		if (!(ret < 0))
+			break;
+	}
 
-	//if (ret < 0) {
-		//dev_dbg(&client->dev,
-			//"write fail: chip 0x%x register 0x%x value 0x%0x: %d\n",
-			//addr, reg, val, ret);
-	//}
+	if (ret < 0) {
+		dev_dbg(&client->dev,
+			"write fail: chip 0x%x register 0x%x value 0x%0x: %d\n",
+			addr, reg, val, ret);
+	}
 
-	//return ret < 0 ? ret : 0;
-//}
+	return ret < 0 ? ret : 0;
+}
 
 
-//static inline int reg16_write_addr(struct i2c_client *client, int chip,
-				   //u16 reg, u8 val)
-//{
-	//struct i2c_msg msg[1];
-	//u8 wbuf[3];
-	//int ret;
+static inline int reg16_write_addr(struct i2c_client *client, int chip,
+				   u16 reg, u8 val)
+{
+	struct i2c_msg msg[1];
+	u8 wbuf[3];
+	int ret;
 
-	//msg->addr = chip;
-	//msg->flags = 0;
-	//msg->len = 3;
-	//msg->buf = wbuf;
-	//wbuf[0] = reg >> 8;
-	//wbuf[1] = reg & 0xff;
-	//wbuf[2] = val;
+	msg->addr = chip;
+	msg->flags = 0;
+	msg->len = 3;
+	msg->buf = wbuf;
+	wbuf[0] = reg >> 8;
+	wbuf[1] = reg & 0xff;
+	wbuf[2] = val;
 
-	//ret = i2c_transfer(client->adapter, msg, 1);
-	//if (ret < 0) {
-		//dev_dbg(&client->dev,
-			//"i2c fail: chip 0x%02x wr 0x%04x (0x%02x): %d\n",
-			//chip, reg, val, ret);
-		//return ret;
-	//}
+	ret = i2c_transfer(client->adapter, msg, 1);
+	if (ret < 0) {
+		dev_dbg(&client->dev,
+			"i2c fail: chip 0x%02x wr 0x%04x (0x%02x): %d\n",
+			chip, reg, val, ret);
+		return ret;
+	}
 
-	//return 0;
-//}
+	return 0;
+}
 
-//static inline int reg16_read_addr(struct i2c_client *client, int chip,
-				  //u16 reg, int *val)
-//{
-	//struct i2c_msg msg[2];
-	//u8 wbuf[2];
-	//u8 rbuf[1];
-	//int ret;
+static inline int reg16_read_addr(struct i2c_client *client, int chip,
+				  u16 reg, int *val)
+{
+	struct i2c_msg msg[2];
+	u8 wbuf[2];
+	u8 rbuf[1];
+	int ret;
 
-	//msg[0].addr = chip;
-	//msg[0].flags = 0;
-	//msg[0].len = 2;
-	//msg[0].buf = wbuf;
-	//wbuf[0] = reg >> 8;
-	//wbuf[1] = reg & 0xff;
+	msg[0].addr = chip;
+	msg[0].flags = 0;
+	msg[0].len = 2;
+	msg[0].buf = wbuf;
+	wbuf[0] = reg >> 8;
+	wbuf[1] = reg & 0xff;
 
-	//msg[1].addr = chip;
-	//msg[1].flags = I2C_M_RD;
-	//msg[1].len = 1;
-	//msg[1].buf = rbuf;
+	msg[1].addr = chip;
+	msg[1].flags = I2C_M_RD;
+	msg[1].len = 1;
+	msg[1].buf = rbuf;
 
-	//ret = i2c_transfer(client->adapter, msg, 2);
-	//if (ret < 0) {
-		//dev_dbg(&client->dev, "i2c fail: chip 0x%02x rd 0x%04x: %d\n",
-			//chip, reg, ret);
-		//return ret;
-	//}
+	ret = i2c_transfer(client->adapter, msg, 2);
+	if (ret < 0) {
+		dev_dbg(&client->dev, "i2c fail: chip 0x%02x rd 0x%04x: %d\n",
+			chip, reg, ret);
+		return ret;
+	}
 
-	//*val = rbuf[0];
+	*val = rbuf[0];
 
-	//return 0;
-//}
+	return 0;
+}
 
-//#define __reg8_read(addr, reg, val)	reg8_read_addr(priv->client, addr, reg, val)
-//#define __reg8_write(addr, reg, val)	reg8_write_addr(priv->client, addr, reg, val)
-//#define __reg16_read(addr, reg, val)	reg16_read_addr(priv->client, addr, reg, val)
-//#define __reg16_write(addr, reg, val)	reg16_write_addr(priv->client, addr, reg, val)
+#define __reg8_read(addr, reg, val)		reg8_read_addr(priv->client, addr, reg, val)
+#define __reg8_write(addr, reg, val)	reg8_write_addr(priv->client, addr, reg, val)
+#define __reg16_read(addr, reg, val)	reg16_read_addr(priv->client, addr, reg, val)
+#define __reg16_write(addr, reg, val)	reg16_write_addr(priv->client, addr, reg, val)
 
 //struct i2c_mux_priv {
 	//struct i2c_adapter adap;

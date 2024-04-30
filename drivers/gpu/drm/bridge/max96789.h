@@ -1,13 +1,20 @@
 
-#define MAX96789_PWR4  				0X0C
+#define HI_NIBBLE(b) (((b) >> 4) & 0x0F)
+#define LO_NIBBLE(b) ((b) & 0x0F)
+
+#define MAX96789_PWR0  				0x08
+#define MAX96789_PWR4  				0x0C
 #define MAX96789_REG1				0x01
 #define MAX96789_REG2				0x02
+#define MAX96789_REG3				0x03
 #define MAX96789_REG4				0x04
 #define MAX96789_REG5				0x05
+#define MAX96789_REG6				0x06
+#define MAX96789_REG15				0x0F
 
-#define MAX96789_CTRL0 				0X10
-#define MAX96789_CTRL1 				0X11
-#define MAX96789_CTRL2				0X12
+#define MAX96789_CTRL0 				0x10
+#define MAX96789_CTRL1 				0x11
+#define MAX96789_CTRL2				0x12
 #define MAX96789_CTRL3				0x13
 
 #define MAX96789_GPIO_BASE(n)		(0x2BE + n)
@@ -28,6 +35,8 @@
 #define MAX96789_MIPI_RX0			0x330
 #define MAX96789_MIPI_RX1			0x331
 #define MAX96789_MIPI_RX2			0x332
+#define MAX96789_MIPI_RX4			0x334
+#define MAX96789_MIPI_RX5			0x335
 #define MAX96789_MIPI_RX8			0x338
 
 // Controller 0
@@ -45,6 +54,7 @@
 #define MAX96789_MIPI_DSI13			0x38D
 #define MAX96789_MIPI_DSI14			0x38E
 #define MAX96789_MIPI_DSI15			0x38F
+#define MAX96789_MIPI_DSI32			0x3A0
 #define MAX96789_MIPI_DSI36			0x3A4
 #define MAX96789_MIPI_DSI37			0x3A5
 #define MAX96789_MIPI_DSI38			0x3A6
@@ -86,14 +96,14 @@
 #define REG16_NUM_RETRIES		10 /* number of read/write retries */
 
 struct max96789_priv {
-	struct device *dev;
-	struct i2c_client *client;
-	struct regmap *regmap;
-	struct gpio_desc *gpiod_pwdn;
-	struct device_node		*host_node;
+	struct device 		*dev;
+	struct i2c_client	*client;
+	struct regmap 		*regmap;
+	struct gpio_desc 	*gpiod_pwdn;
+	struct device_node	*host_node;
 
 	struct drm_bridge bridge;
-	struct drm_bridge *next_bridge;
+	struct drm_bridge 	*next_bridge;
 	
 	int links_mask;
 	int dt;

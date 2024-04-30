@@ -82,12 +82,12 @@ static int max96789_patgen(struct max96789_priv *priv, int pat_flags)
 	max96789_write_n(priv, MAX96789_VTX_X(25), 2, de_low);		
 	max96789_write_n(priv, MAX96789_VTX_X(27), 2, de_cnt);		
 	
-	/* pclk detect, select VS trigger edge */
-	max96789_write_reg(priv, MAX96789_VTX_X(1), 0x21);
-
 	/* Generate VS, HS and DE in free-running mode. */
 	max96789_write_reg(priv, MAX96789_VTX_X(0), 0xFB);
 	
+	/* pclk detect, select VS trigger edge */
+	max96789_write_reg(priv, MAX96789_VTX_X(1), 0x01);
+
 	/* Set gradient increment for gradient pattern. */
 	max96789_write_reg(priv, MAX96789_VTX_X(30), 0x03);
 	
@@ -111,29 +111,28 @@ static void max96789_preinit(struct max96789_priv *priv)
 	max96789_update_bits(priv, MAX96789_CTRL0, BIT(7), BIT(7));	
 	usleep_range(10000, 20000);
 	
-	max96789_write_reg(priv, MAX96789_GPIO_A(0), 0x12);	// MFP0 TX
+	max96789_write_reg(priv, MAX96789_GPIO_A(0), 0x12);			// MFP0 TX
 	
-	//max96789_write_reg(priv, MAX96789_GPIO_A(2), 0x92);	// MFP2 TX
+	max96789_update_bits(priv, MAX96789_REG3, 0x03, 0x00);		// RCLK 25MHz
+	max96789_update_bits(priv, MAX96789_REG6, BIT(5), BIT(5));	// EN RCLK output
 	
-	//max96789_write_reg(priv, MAX96789_GPIO_A(3), 0x92);	// MFP2 TX
-	//max96789_write_reg(priv, MAX96789_GPIO_A(7), 0x92);	// MFP2 TX
-	//max96789_write_reg(priv, MAX96789_GPIO_A(8), 0x92);	// MFP2 TX
-	//max96789_write_reg(priv, MAX96789_GPIO_A(9), 0x92);	// MFP2 TX
-	
-	//max96789_write_reg(priv, MAX96789_GPIO_A(1), 0x63);	// GPIO_TX
-	//max96789_write_reg(priv, MAX96789_GPIO_B(1), 0x2C);	// GPIO_TX_ID
-	
-	max96789_write_reg(priv, MAX96789_REG5, 0x40);	// ERRB output to GPIO
+	max96789_write_reg(priv, MAX96789_REG5, 0xC0);				// ERRB output to GPIO
 	usleep_range(10000, 20000);
 	
 	/* enable internal regulator for 1.2V VDD supply */
-	max96789_update_bits(priv, MAX96789_CTRL0, BIT(2), BIT(2));	/* REG_ENABLE = 1 */
-	max96789_update_bits(priv, MAX96789_CTRL2, BIT(4), BIT(4));	/* REG_MNL = 1 */
+	max96789_update_bits(priv, MAX96789_CTRL0, BIT(2), BIT(2));	// REG_ENABLE = 1
+	max96789_update_bits(priv, MAX96789_CTRL2, BIT(4), BIT(4));	// REG_MNL = 1
 	
 	/* I2C-to-I2C Slave Timeout Setting */
-	max96789_write_reg(priv, MAX96789_I2C_0, 0x01);
+	// Fast-mode plus speed
+	max96789_write_reg(priv, MAX96789_I2C_0, 0x06);
 	// Timeout = 1ms, 397Kbps - set for I2C fast or fast-mode plus speed
-	max96789_write_reg(priv, MAX96789_I2C_1, 0x51);
+	max96789_write_reg(priv, MAX96789_I2C_1, 0x76);
+	
+	
+	////
+	//max96789_write_reg(priv, 0x0602, BIT(5));
+	
 	
 	// Link AB
 	max96789_update_bits(priv, MAX96789_CTRL1, 0x05, 0x05);
@@ -152,29 +151,28 @@ static int max96789_mipi_setup(struct max96789_priv *priv)
 	// DSI port A selection for video pipeline X
 	max96789_write_reg(priv, MAX96789_FRONTTOP_0, 0x5E);	
 	
-	// Forces the MIPI receiver to start
-	max96789_update_bits(priv, MAX96789_FRONTTOP_29, BIT(7), BIT(7));
-	
 	// MIPI Rx 2x4 only A
 	max96789_update_bits(priv, MAX96789_MIPI_RX0, 0x0F, 0x0C);
 	
 	// 4 data lanes
 	max96789_update_bits(priv, MAX96789_MIPI_RX1, 0x33, 0x33);
 	
-	// PHY0 D0 is lane 2, PHY0 D1 is lane 3
-	// PHY1 D0 is lane 0, PHY1 D1 is lane 1
-	max96789_update_bits(priv, MAX96789_MIPI_RX2, 0xFF, 0x4E);
+	// PHY0 D0 is lane 0, PHY0 D1 is lane 1
+	// PHY1 D0 is lane 2, PHY1 D1 is lane 3
+	max96789_update_bits(priv, MAX96789_MIPI_RX2, 0xFF, 0xE4);
+	
+	max96789_update_bits(priv, MAX96789_MIPI_RX4, 0xFF, 0x70);
 	
 	max96789_update_bits(priv, MAX96789_MIPI_RX8, 0xFF, 0xC0);
 	
 	// ----DSI Controller 0
 	// controller 0 dsi video mode
-	max96789_update_bits(priv, MAX96789_MIPI_DSI0, 0xF8, 0xC8);
+	max96789_update_bits(priv, MAX96789_MIPI_DSI0, 0xF8, 0x0D);
 	
 	//----------------
-	// DE length in number of PCLK cycles, 768 * 1280
-	//max96789_update_bits(priv, MAX96789_MIPI_DSI1, 0xFF, 0x00);
-	//max96789_update_bits(priv, MAX96789_MIPI_DSI2, 0xFF, 0x03);
+	// DE length in number of PCLK cycles, 768
+	max96789_update_bits(priv, MAX96789_MIPI_DSI1, 0xFF, 0x00);
+	max96789_update_bits(priv, MAX96789_MIPI_DSI2, 0x0F, 0x03);
 	
 	// HS pulse width in number of PCLK cycles, hsa	 = 14
 	max96789_update_bits(priv, MAX96789_MIPI_DSI5, 0xFF, 0x0E);
@@ -199,7 +197,7 @@ static int max96789_mipi_setup(struct max96789_priv *priv)
 	max96789_update_bits(priv, MAX96789_MIPI_DSI8, 0xC4, 0x04);
 	
 	// DPI deskew
-	max96789_update_bits(priv, MAX96789_MIPI_DSI36, 0xC3, 0xC3);
+	max96789_update_bits(priv, MAX96789_MIPI_DSI36, 0xC3, 0xC2);
 	
 	// VFP = 20
 	max96789_update_bits(priv, MAX96789_MIPI_DSI37, 0xFF, 0x14);	
@@ -209,7 +207,7 @@ static int max96789_mipi_setup(struct max96789_priv *priv)
 	max96789_update_bits(priv, MAX96789_MIPI_DSI38, 0xF0, 0x14);	
 	max96789_update_bits(priv, MAX96789_MIPI_DSI39, 0xFF, 0x00);
 	
-	// vertical active window size
+	// vertical active window size 768
 	max96789_update_bits(priv, MAX96789_MIPI_DSI40, 0xFF, 0x00);
 	max96789_update_bits(priv, MAX96789_MIPI_DSI41, 0xFF, 0x03);
 	
@@ -221,9 +219,12 @@ static int max96789_mipi_setup(struct max96789_priv *priv)
 	max96789_update_bits(priv, MAX96789_MIPI_DSI43, 0xF0, 0x06);
 	max96789_update_bits(priv, MAX96789_MIPI_DSI44, 0xFF, 0x00);
 	
-	// horizontal active window size
+	// horizontal active window size 1280
 	max96789_update_bits(priv, MAX96789_MIPI_DSI45, 0xFF, 0x00);
-	max96789_update_bits(priv, MAX96789_MIPI_DSI46, 0x1F, 0x0F);
+	max96789_update_bits(priv, MAX96789_MIPI_DSI46, 0x1F, 0x05);
+	
+	// Forces the MIPI receiver to start
+	max96789_write_reg(priv, MAX96789_FRONTTOP_29, 0x81);
 	
 	usleep_range(5000, 10000);
 
@@ -262,6 +263,7 @@ static void max96789_gmsl2_link_pipe_setup(struct max96789_priv *priv, int link_
 	max96789_update_bits(priv, MAX96789_CTRL0, BIT(4), BIT(4));	
 		
 	// packets are transmitted over GMSL A
+	max96789_write_reg(priv, MAX96789_TX0(0), 0xB8);
 	max96789_write_reg(priv, MAX96789_TX3(0), 0x10);
 
 	// start video pipe X from DSI port A
@@ -272,10 +274,10 @@ static void max96789_gmsl2_link_pipe_setup(struct max96789_priv *priv, int link_
 	usleep_range(2000, 5000);
 	
 	// LINK A remote wake-up enable
-	max96789_write_reg(priv, MAX96789_PWR4, 0x10);
-
+	max96789_update_bits(priv, MAX96789_PWR4, 0x70, 0x10);
+	
 	// LINK A is enabled
-	max96789_update_bits(priv, MAX96789_REG4, 0x30, 0x10);
+	max96789_update_bits(priv, MAX96789_REG4, 0x50, 0x50);
 	
 	// CRC bpp from BPP bitfield
 	max96789_write_reg(priv, MAX96789_VIDEO_TX0(0), 0x68);
@@ -283,6 +285,8 @@ static void max96789_gmsl2_link_pipe_setup(struct max96789_priv *priv, int link_
 	max96789_update_bits(priv, MAX96789_VIDEO_TX1(0), 0x3F, 0x18);
 	// mask video with DE
 	//max96789_update_bits(priv, MAX96789_VIDEO_TX6(0), BIT(6), BIT(6));
+	
+	//
 }
 
 static void max96789_reset_oneshot(struct max96789_priv *priv, int mask)
@@ -329,24 +333,24 @@ static int max96789_gmsl2_reverse_channel_setup(struct max96789_priv *priv, int 
 
 	max96789_update_bits(priv, MAX96789_REG4, 0x50, 0x40);
 	
-	max96789_reset_oneshot(priv, 0);
+	//max96789_reset_oneshot(priv, 0);
 
 	/*
 	 * wait the link to be established,
 	 * indicated when status bit LOCKED goes high
 	 */
-	for (; timeout > 0; timeout--) 
-	{
-		if (max96789_gmsl2_get_link_lock(priv, 0))
-			break;
-		mdelay(1);
-	}
+	//for (; timeout > 0; timeout--) 
+	//{
+		//if (max96789_gmsl2_get_link_lock(priv, 0))
+			//break;
+		//mdelay(1);
+	//}
 
-	if (!timeout) 
-	{
-		ret = -ETIMEDOUT;
-		//goto out;
-	}
+	//if (!timeout) 
+	//{
+		//ret = -ETIMEDOUT;
+		////goto out;
+	//}
 
 	for (i = 0; i < ARRAY_SIZE(des_addrs); i++) 
 	{
@@ -373,6 +377,7 @@ static int max96789_gmsl2_reverse_channel_setup(struct max96789_priv *priv, int 
 
 static void max96789_initialize(struct max96789_priv *priv)
 {
+	printk("[%s (%d)]\n", __FUNCTION__, __LINE__);
 	//struct max96789_source *source;
 	int ret;
 	int link = 0;
@@ -382,7 +387,7 @@ static void max96789_initialize(struct max96789_priv *priv)
 	max96789_mipi_setup(priv);	// MIPI-DSI
 
 	max96789_gmsl2_link_pipe_setup(priv, 0);
-	max96789_gmsl2_reverse_channel_setup(priv, 0);
+	//max96789_gmsl2_reverse_channel_setup(priv, 0);
 	
 	///* Start all cameras. */
 	//for_each_source(priv, source) 
@@ -401,7 +406,6 @@ static void max96789_initialize(struct max96789_priv *priv)
 		
 	if (DEBUG_COLOR_PATTERN == 1)
 	{
-		printk("[max96789_patgen]: %d\n", __LINE__);
 		max96789_patgen(priv, PATTERN_TYPE);
 	}
 	return;
@@ -447,7 +451,10 @@ static int max96789_bridge_attach(struct drm_bridge *bridge,
 		mipi_dsi_device_unregister(dsi);
 		return ret;
 	}
-printk("%s (line %d) ret : %d\n", __FUNCTION__, __LINE__, ret);
+	
+	max96789_initialize(priv);
+	
+	printk("[%s (%d)]\n", __FUNCTION__, __LINE__);
 	return drm_bridge_attach(bridge->encoder, priv->next_bridge, bridge, flags);
 }
 
@@ -458,6 +465,8 @@ static void max96789_bridge_enable(struct drm_bridge *bridge)
 	gpiod_set_value_cansleep(priv->gpiod_pwdn, 1);
 	
 	max96789_initialize(priv);
+	
+	printk("[%s (%d)]\n", __FUNCTION__, __LINE__);
 }
 
 static void max96789_bridge_disable(struct drm_bridge *bridge)
@@ -473,11 +482,11 @@ static const struct drm_bridge_funcs max96789_bridge_funcs = {
 	.disable = max96789_bridge_disable,
 };
 
-static const struct regmap_config max96789_i2c_regmap = {
-	.reg_bits = 16,
-	.val_bits = 8,
-	.max_register = 0x1f00,
-};
+//static const struct regmap_config max96789_i2c_regmap = {
+	//.reg_bits = 16,
+	//.val_bits = 8,
+	//.max_register = 0x1f00,
+//};
 
 static int max96789_bridge_probe(struct i2c_client *client)
 {
@@ -492,9 +501,9 @@ static int max96789_bridge_probe(struct i2c_client *client)
 	dev_set_drvdata(dev, priv);
 	priv->dev = dev;
 
-	priv->regmap = devm_regmap_init_i2c(client, &max96789_i2c_regmap);
-	if (IS_ERR(priv->regmap))
-		return PTR_ERR(priv->regmap);
+	//priv->regmap = devm_regmap_init_i2c(client, &max96789_i2c_regmap);
+	//if (IS_ERR(priv->regmap))
+		//return PTR_ERR(priv->regmap);
 
 	priv->gpiod_pwdn = devm_gpiod_get_optional(&client->dev, "enable",
 						   GPIOD_OUT_HIGH);
@@ -510,17 +519,7 @@ static int max96789_bridge_probe(struct i2c_client *client)
 	priv->dt = MIPI_DT_RGB888;
 	i2c_set_clientdata(client, priv);
 	
-	max96789_initialize(priv);
-
-
-	ret = drm_of_find_panel_or_bridge(priv->dev->of_node, 1, 0,
-				NULL, &priv->next_bridge);
-				
-	if (ret) 
-	{
-		DRM_ERROR("could not find bridge node\n");
-		//return ret;
-	}
+	//max96789_initialize(priv);
 
 	priv->host_node = of_graph_get_remote_node(priv->dev->of_node
 				, 0, 0);
@@ -528,7 +527,52 @@ static int max96789_bridge_probe(struct i2c_client *client)
 	priv->bridge.funcs = &max96789_bridge_funcs;
 	priv->bridge.of_node = priv->dev->of_node;
 	drm_bridge_add(&priv->bridge);
+	
+	ret = drm_of_find_panel_or_bridge(priv->dev->of_node, 1, 0,
+				NULL, &priv->next_bridge);
+	
+	if (ret) 
+	{
+		DRM_ERROR("could not find bridge node\n");
+		//return ret;
+	}
+	
+	// ------------- debug
+	u8 vddbad = 0;
+	max96789_read(priv, MAX96789_PWR0, &vddbad);
+	printk("[%s (%d)]: vdd info = %d\n", __FUNCTION__, __LINE__, vddbad);
+	
+	u8 link_status = 0;
+	max96789_read(priv, MAX96789_REG15, &link_status);
+	printk("[%s (%d)]: link_status = %d\n", __FUNCTION__, __LINE__, link_status);
+	
+	u8 pclk_det = 0;
+	max96789_read(priv, MAX96789_VTX_X(1), &pclk_det);
+	if (pclk_det == 1)
+	{
+		printk("[%s (%d)]: PCLK is not detected\n", __FUNCTION__, __LINE__);
+	}
+	else
+	{
+		printk("[%s (%d)]: pclk_det = %d\n", __FUNCTION__, __LINE__, pclk_det);
+	}
+	
 
+	u8 hs_vs_det = 0;
+	max96789_read(priv, MAX96789_HS_VS_X, &hs_vs_det);
+	if (hs_vs_det == 3)
+	{
+		printk("[%s (%d)]: HS VS DE are not detected\n", __FUNCTION__, __LINE__);
+	}
+	else
+	{
+		printk("[%s (%d)]: hs_vs_det = %d\n", __FUNCTION__, __LINE__, hs_vs_det);
+	}
+	
+	u8 dsi_contr_0_status = 0;
+	max96789_read(priv, MAX96789_MIPI_DSI32, &dsi_contr_0_status);
+	printk("[%s (%d)]: dsi_contr_0_status = %d\n", __FUNCTION__, __LINE__, dsi_contr_0_status);
+	
 	return 0;
 }
 

@@ -1420,10 +1420,10 @@ static int max96712_parse_dt(struct i2c_client *client)
 
 	if (of_property_read_u32(np, "csi-rate", &csi_rate))
 	{
-		if( priv->gmsl2_rate == GMSL2_6Gbps )
-			csi_rate = 1200;
-		else
+		if( priv->gmsl2_rate == GMSL2_3Gbps )
 			csi_rate = 600;
+		else
+			csi_rate = 1200;
 	}
 	for (i = 0; i < priv->n_links; i++)
 		priv->csi_rate[priv->link[i]->out_mipi] = csi_rate;

@@ -72,7 +72,7 @@
 
 		port {
 			dsi_con_out0: endpoint {
-			remote-endpoint = <&sn65dsi86_out0>;
+				remote-endpoint = <&sn65dsi86_out0>;
 			};
 		};
 	};
@@ -82,7 +82,7 @@
 
 		port {
 			dsi_con_out1: endpoint {
-			remote-endpoint = <&sn65dsi86_out1>;
+				remote-endpoint = <&sn65dsi86_out1>;
 			};
 		};
 	};
@@ -483,7 +483,7 @@
 		no-use-gpio;
 		no-use-scramble;
 		hpd-poll;
-		status = "disabled";
+		status = "okay";
 
 		ports {
 			#address-cells = <1>;
@@ -507,10 +507,10 @@
 
 	max96789@60 {
 		compatible = "maxim,max96789";
-		reg = <0x60>;
+		reg = <0x60>, <0x0A>, <0x0B>;
 		enable-gpios = <&io_expander4 0 GPIO_ACTIVE_HIGH>;
-		status = "disabled";
-
+		status = "okay";
+		
 		ports {
 			#address-cells = <1>;
 			#size-cells = <0>;
@@ -518,17 +518,33 @@
 			port@0 {
 				reg = <0>;
 				max96789_in: endpoint {
+					bus-type = <1>;
+					clock-lanes = <0>;
+					data-lanes = <1 2 3 4>;
+					remote-endpoint = <&dsi0_out>;
 				};
 			};
 
 			port@1 {
 				reg = <1>;
 				max96789_out: endpoint {
+					remote-endpoint = <&vc0113_con>;
 				};
 			};
 		};
 	};
 
+	vc0113@55 {
+		compatible = "dummy,panel";
+		reg = <0x55>;
+		status = "okay";
+		port {
+			vc0113_con: endpoint {
+				remote-endpoint = <&max96789_out>;
+			};
+		};
+	};
+			
 	gmsl0: gmsl-deserializer@49 {
 		gpio-controller;
 		#gpio-cells = <2>;
@@ -621,7 +637,7 @@
 		compatible = "maxim,max96712";
 		reg = <0x4b>, <0x05>, <0x06>, <0x07>, <0x08>;
 		gpios = <&io_expander3 0 GPIO_ACTIVE_HIGH>;
-		maxim,invert_phy-pol;
+		//maxim,invert_phy-pol;	// for D-PHY
 
 		ports {
 			#address-cells = <1>;
@@ -745,11 +761,11 @@
 };
 
 &du {
-	status = "disabled";
+	status = "okay";
 };
 
 &dsi0 {
-	status = "disabled";
+	status = "okay";
 
 	use-extal-clk;
 
@@ -757,6 +773,7 @@
 		port@1 {
 			endpoint {
 				remote-endpoint = <&sn65dsi86_in0>;
+				//remote-endpoint = <&max96789_in>;
 				data-lanes = <1 2 3 4>;
 			};
 		};

@@ -26,14 +26,12 @@
 #include <drm/drm_print.h>
 #include <drm/drm_probe_helper.h>
 #include <drm/drm_edid.h>
-
+#include <drm/drm_crtc_helper.h>
+#include <drm/drm_connector.h>
 #include "max96789.h"
 
-static unsigned int DEBUG_COLOR_PATTERN = 1;	/* 0: close, 1: MAX96789 */
-module_param_named(patgen, DEBUG_COLOR_PATTERN, int, 0644);
-
-static unsigned int PATTERN_TYPE = 1;			/* 1: gradient, 2: chessboard */
-module_param_named(patgen_type, PATTERN_TYPE, int, 0644);
+static unsigned int SER_PATTERN_SEL = 0x02;		/* 0x02: gradient, 0x01: chessboard, 0x00: OFF */
+module_param_named(ser_patgen_select, SER_PATTERN_SEL, int, 0644);
 
 #define bridge_to_max96789_priv(b) \
 	container_of(b, struct max96789_priv, bridge)
@@ -41,6 +39,49 @@ module_param_named(patgen_type, PATTERN_TYPE, int, 0644);
 #define connector_to_max96789_priv(c) \
 	container_of(c, struct max96789_priv, connector);
 
+/* -----------------------------------------------------------------------------
+ * DEBUG
+ */
+ 
+static void DEBUG_INFO(struct max96789_priv *priv)
+{
+	u8 vddbad = 0;
+	max96789_read(priv, MAX96789_PWR0, &vddbad);
+	printk("[%s (%d)]: vdd info = %d\n", __FUNCTION__, __LINE__, vddbad);
+	
+	u8 link_status = 0;
+	max96789_read(priv, MAX96789_REG15, &link_status);
+	printk("[%s (%d)]: link_status = %d\n", __FUNCTION__, __LINE__, link_status);
+	
+	u8 pclk_det = 0;
+	max96789_read(priv, MAX96789_VTX_X(1), &pclk_det);
+	if (pclk_det == 1)
+	{
+		printk("[%s (%d)]: PCLK is not detected\n", __FUNCTION__, __LINE__);
+	}
+	else
+	{
+		printk("[%s (%d)]: pclk_det = %d\n", __FUNCTION__, __LINE__, pclk_det);
+	}
+	
+
+	u8 hs_vs_det = 0;
+	max96789_read(priv, MAX96789_HS_VS_X, &hs_vs_det);
+	if (hs_vs_det == 3)
+	{
+		printk("[%s (%d)]: HS VS DE are not detected\n", __FUNCTION__, __LINE__);
+	}
+	else
+	{
+		printk("[%s (%d)]: hs_vs_det = %d\n", __FUNCTION__, __LINE__, hs_vs_det);
+	}
+	
+	u8 dsi_contr_0_status = 0;
+	max96789_read(priv, MAX96789_MIPI_DSI32, &dsi_contr_0_status);
+	printk("[%s (%d)]: dsi_contr_0_status = %d\n", __FUNCTION__, __LINE__, dsi_contr_0_status);
+}
+ 
+ 
 /* -----------------------------------------------------------------------------
  * test pattern
  */
@@ -96,7 +137,7 @@ static int max96789_patgen(struct max96789_priv *priv, int pat_flags)
 	max96789_write_n(priv, MAX96789_VTX_X(34), 3, 0x0000FF);
 	max96789_write_n(priv, MAX96789_VTX_X(37), 3, 0x505050);
 	
-	/* Select pattern : 0x10 is gradient, 0x01 is chessboard, 
+	/* Select pattern : 0x02 is gradient, 0x01 is chessboard, 
 	 * 0x00 is pattern generator disabled - use video from the serializer input */
 	max96789_write_reg(priv, MAX96789_VTX_X(29), pat_flags == 1 ? 0x02 : 0x01);
 
@@ -108,315 +149,257 @@ static int max96789_patgen(struct max96789_priv *priv, int pat_flags)
  */
 static void max96789_preinit(struct max96789_priv *priv)
 {
-	max96789_update_bits(priv, MAX96789_CTRL0, BIT(7), BIT(7));	
-	usleep_range(10000, 20000);
-	
-	max96789_write_reg(priv, MAX96789_GPIO_A(0), 0x12);			// MFP0 TX
-	
-	max96789_update_bits(priv, MAX96789_REG3, 0x03, 0x00);		// RCLK 25MHz
-	max96789_update_bits(priv, MAX96789_REG6, BIT(5), BIT(5));	// EN RCLK output
-	
-	max96789_write_reg(priv, MAX96789_REG5, 0xC0);				// ERRB output to GPIO
-	usleep_range(10000, 20000);
-	
-	/* enable internal regulator for 1.2V VDD supply */
-	max96789_update_bits(priv, MAX96789_CTRL0, BIT(2), BIT(2));	// REG_ENABLE = 1
-	max96789_update_bits(priv, MAX96789_CTRL2, BIT(4), BIT(4));	// REG_MNL = 1
+	max96789_write_reg(priv, 0x20F5, 0x00);				// HPD
+	max96789_write_reg(priv, MAX96789_CTRL0, 0x11);		// AUTO_LINK = 1
 	
 	/* I2C-to-I2C Slave Timeout Setting */
-	// Fast-mode plus speed
-	max96789_write_reg(priv, MAX96789_I2C_0, 0x06);
-	// Timeout = 1ms, 397Kbps - set for I2C fast or fast-mode plus speed
-	max96789_write_reg(priv, MAX96789_I2C_1, 0x76);
-	
-	
-	////
-	//max96789_write_reg(priv, 0x0602, BIT(5));
-	
-	
-	// Link AB
-	max96789_update_bits(priv, MAX96789_CTRL1, 0x05, 0x05);
-	max96789_update_bits(priv, MAX96789_REG4, 0xF0, 0);
-	
+	max96789_write_reg(priv, MAX96789_I2C_0, 0x06);		// Fast-mode plus speed
+	max96789_write_reg(priv, MAX96789_I2C_1, 0x56);		// Timeout = 32ms, 397Kbps
 }
 
-static void max96789_gmsl2_initial_setup(struct max96789_priv *priv)
+static int max96789_mipi_link_pipe_setup(struct max96789_priv *priv)
 {
-	max96789_update_bits(priv, MAX96789_REG4, 0xF0, 0xF0);
-	max96789_write_reg(priv, MAX96789_REG1, 0x08);
-}
-
-static int max96789_mipi_setup(struct max96789_priv *priv)
-{
-	// DSI port A selection for video pipeline X
+	// DSI port A selection for video pipeline X, Clock Select
 	max96789_write_reg(priv, MAX96789_FRONTTOP_0, 0x5E);	
 	
-	// MIPI Rx 2x4 only A
-	max96789_update_bits(priv, MAX96789_MIPI_RX0, 0x0F, 0x0C);
+	// Set Stream for DSI Port A
+	max96789_write_reg(priv, MAX96789_TX3(0), 0x10);
+	
+	// start video pipe X from DSI port A
+	max96789_write_reg(priv, MAX96789_FRONTTOP_9, 0x01);
+	
+	// set MIPI port a mapping, PHY01 to port A
+	max96789_write_reg(priv, MAX96789_MIPI_RX2, 0x4E);
+	
+	//// set MIPI port a mapping, PHY23 to port B
+	//max96789_write_reg(priv, MAX96789_MIPI_RX3, 0xE4);
 	
 	// 4 data lanes
-	max96789_update_bits(priv, MAX96789_MIPI_RX1, 0x33, 0x33);
+	max96789_write_reg(priv, MAX96789_MIPI_RX1, 0x33);
 	
-	// PHY0 D0 is lane 0, PHY0 D1 is lane 1
-	// PHY1 D0 is lane 2, PHY1 D1 is lane 3
-	max96789_update_bits(priv, MAX96789_MIPI_RX2, 0xFF, 0xE4);
+	// MIPI Rx 2x4 only A
+	max96789_write_reg(priv, MAX96789_MIPI_RX0, 0x04);
 	
-	max96789_update_bits(priv, MAX96789_MIPI_RX4, 0xFF, 0x70);
+	// video pipe crossbar (X->X, Y->Y, Z->Z, U->U)
+	max96789_write_reg(priv, MAX96789_FRONTTOP_30, 0xE4);
 	
-	max96789_update_bits(priv, MAX96789_MIPI_RX8, 0xFF, 0xC0);
-	
-	// ----DSI Controller 0
-	// controller 0 dsi video mode
-	max96789_update_bits(priv, MAX96789_MIPI_DSI0, 0xF8, 0x0D);
-	
-	//----------------
-	// DE length in number of PCLK cycles, 768
-	max96789_update_bits(priv, MAX96789_MIPI_DSI1, 0xFF, 0x00);
-	max96789_update_bits(priv, MAX96789_MIPI_DSI2, 0x0F, 0x03);
-	
-	// HS pulse width in number of PCLK cycles, hsa	 = 14
-	max96789_update_bits(priv, MAX96789_MIPI_DSI5, 0xFF, 0x0E);
-	max96789_update_bits(priv, MAX96789_MIPI_DSI7, 0x0F, 0x00);
-	
-	// VS pulse width in number of PCLK cycles, vsa	 = 16
-	max96789_update_bits(priv, MAX96789_MIPI_DSI6, 0xFF, 0x10);
-	max96789_update_bits(priv, MAX96789_MIPI_DSI7, 0xF0, 0x00);
-	
-	// high-speed Rx timeout
-	max96789_update_bits(priv, MAX96789_MIPI_DSI10, 0xFF, 0x00);
-	max96789_update_bits(priv, MAX96789_MIPI_DSI11, 0xFF, 0x00);
-	max96789_update_bits(priv, MAX96789_MIPI_DSI12, 0xFF, 0x00);
-	
-	// Low-power Tx timeout
-	max96789_update_bits(priv, MAX96789_MIPI_DSI13, 0xFF, 0x00);
-	max96789_update_bits(priv, MAX96789_MIPI_DSI14, 0xFF, 0x00);
-	max96789_update_bits(priv, MAX96789_MIPI_DSI15, 0xFF, 0x00);
-	//----------------
-		
-	// vc = 0
-	max96789_update_bits(priv, MAX96789_MIPI_DSI8, 0xC4, 0x04);
-	
-	// DPI deskew
-	max96789_update_bits(priv, MAX96789_MIPI_DSI36, 0xC3, 0xC2);
-	
-	// VFP = 20
-	max96789_update_bits(priv, MAX96789_MIPI_DSI37, 0xFF, 0x14);	
-	max96789_update_bits(priv, MAX96789_MIPI_DSI38, 0x0F, 0x00);
-	
-	// VBP = 20
-	max96789_update_bits(priv, MAX96789_MIPI_DSI38, 0xF0, 0x14);	
-	max96789_update_bits(priv, MAX96789_MIPI_DSI39, 0xFF, 0x00);
-	
-	// vertical active window size 768
-	max96789_update_bits(priv, MAX96789_MIPI_DSI40, 0xFF, 0x00);
-	max96789_update_bits(priv, MAX96789_MIPI_DSI41, 0xFF, 0x03);
-	
-	// HFP = 200
-	max96789_update_bits(priv, MAX96789_MIPI_DSI42, 0xFF, 0xC8);
-	max96789_update_bits(priv, MAX96789_MIPI_DSI43, 0x0F, 0x00);
-
-	// HBP = 6
-	max96789_update_bits(priv, MAX96789_MIPI_DSI43, 0xF0, 0x06);
-	max96789_update_bits(priv, MAX96789_MIPI_DSI44, 0xFF, 0x00);
-	
-	// horizontal active window size 1280
-	max96789_update_bits(priv, MAX96789_MIPI_DSI45, 0xFF, 0x00);
-	max96789_update_bits(priv, MAX96789_MIPI_DSI46, 0x1F, 0x05);
-	
-	// Forces the MIPI receiver to start
-	max96789_write_reg(priv, MAX96789_FRONTTOP_29, 0x81);
-	
-	usleep_range(5000, 10000);
+	usleep_range(2000, 5000);
 
 	return 0;
 }
 
-static void max96789_pipe_override(struct max96789_priv *priv,
-								   unsigned int pipe,
-								   unsigned int dt, unsigned int vc)
+static void max96789_gmsl2_initial_setup(struct max96789_priv *priv)
+{
+	// coax drive
+	max96789_write_reg(priv, MAX96789_CTRL1, 0x0F);
+			
+	// TX_RATE 6 Gbps
+	max96789_write_reg(priv, MAX96789_REG1, 0x08);
+	
+	// Link A: enable, link B: disable 
+	max96789_write_reg(priv, MAX96789_REG4, 0x50);
+	
+	usleep_range(2000, 5000);
+}
+
+static void max96789_pipe_override(struct max96789_priv *priv)
 {
 	// EN virtual channel, bpp, datatype for video pipeline X
-	max96789_update_bits(priv, MAX96789_FRONTTOP_20, 0xFF, 0xB8);
-	
-	//// EN virtual channel, bpp, datatype for video pipeline Y
-	//max96789_update_bits(priv, MAX96789_FRONTTOP_20, 0xFF, 0xB8);
+	max96789_write_reg(priv, MAX96789_FRONTTOP_20, 0x98);
 	
 	// data type for video channel X
-	max96789_update_bits(priv, MAX96789_FRONTTOP_25, 0x3F, 0x30);
+	max96789_write_reg(priv, MAX96789_FRONTTOP_25, 0x24);
 	
-	//// data type for video channel Y
-	//max96789_update_bits(priv, MAX96789_FRONTTOP_26, 0x3F, 0x30);
+	// EN virtual channel, bpp, datatype for video pipeline Y
+	max96789_write_reg(priv, MAX96789_FRONTTOP_21, 0x98);
 	
-	// video pipe crossbar (X->X, Y->Y, Z->Z, U->U)
-	max96789_update_bits(priv, MAX96789_FRONTTOP_30, 0xFF, 0xE4);
-}
-
-static void max96789_gmsl2_link_pipe_setup(struct max96789_priv *priv, int link_n)
-{
-	//struct max96789_link *link = priv->link[link_n];
-	int pipe = link_n; /* straight mapping */
-	int dt = priv->dt; /* must come from imager */
-	int in_vc = 0;
-	int i;
-
-	// AUTO_LINK = 0, link A is selected
-	max96789_update_bits(priv, MAX96789_CTRL0, BIT(4), BIT(4));	
-		
-	// packets are transmitted over GMSL A
-	max96789_write_reg(priv, MAX96789_TX0(0), 0xB8);
-	max96789_write_reg(priv, MAX96789_TX3(0), 0x10);
-
-	// start video pipe X from DSI port A
-	max96789_write_reg(priv, MAX96789_FRONTTOP_9, 0x01);
+	// data type for video channel Y
+	max96789_write_reg(priv, MAX96789_FRONTTOP_26, 0x24);
+	
 	usleep_range(2000, 5000);
-	
-	max96789_pipe_override(priv, pipe, dt, in_vc);
-	usleep_range(2000, 5000);
-	
-	// LINK A remote wake-up enable
-	max96789_update_bits(priv, MAX96789_PWR4, 0x70, 0x10);
-	
-	// LINK A is enabled
-	max96789_update_bits(priv, MAX96789_REG4, 0x50, 0x50);
-	
-	// CRC bpp from BPP bitfield
-	max96789_write_reg(priv, MAX96789_VIDEO_TX0(0), 0x68);
-	// bpp
-	max96789_update_bits(priv, MAX96789_VIDEO_TX1(0), 0x3F, 0x18);
-	// mask video with DE
-	//max96789_update_bits(priv, MAX96789_VIDEO_TX6(0), BIT(6), BIT(6));
-	
-	//
 }
 
-static void max96789_reset_oneshot(struct max96789_priv *priv, int mask)
+static void max96789_video_timing(struct max96789_priv *priv)
 {
-	int timeout;
-	u8 val;
-
-	// reset link
-	max96789_update_bits(priv, MAX96789_CTRL0, 0x60, 0x60);	
-
-	//mask &= 0x0f;
-	//max96712_update_bits(priv, MAX96712_CTRL1, mask, mask);
-
-	///* wait for one-shot bit self-cleared */
-	//for (timeout = 0; timeout < 100; timeout++) 
-	//{
-		//max96712_read(priv, MAX96712_CTRL1, &val);
-		//if (!(val & mask))
-			//break;
-
-		//mdelay(1);
-	//}
-
-	//if (val & mask)
-		//dev_err(&priv->client->dev, "Failed reset oneshot 0x%x\n", mask);
+	max96789_write_reg(priv, MAX96789_MIPI_DSI5, 	0x0E);	// HSYNC_WIDTH_L
+	max96789_write_reg(priv, MAX96789_MIPI_DSI6,	0x10);	// VSYNC_WIDTH_L
+	max96789_write_reg(priv, MAX96789_MIPI_DSI7, 	0x00);	// HSYNC_WIDTH_H / VSYNC_WIDTH_H
+	max96789_write_reg(priv, MAX96789_MIPI_DSI37, 	0x14);	// VFP_L
+	max96789_write_reg(priv, MAX96789_MIPI_DSI38, 	0x40);	// VFP_H / VBP_L
+	max96789_write_reg(priv, MAX96789_MIPI_DSI39, 	0x01);	// VBP_H
+	max96789_write_reg(priv, MAX96789_MIPI_DSI40, 	0x00);	// VRES_L
+	max96789_write_reg(priv, MAX96789_MIPI_DSI41, 	0x03);	// VRES_H
+	max96789_write_reg(priv, MAX96789_MIPI_DSI42, 	0xC8);	// HFP_L
+	max96789_write_reg(priv, MAX96789_MIPI_DSI43, 	0x60);	// HFP_H / HBP_L
+	max96789_write_reg(priv, MAX96789_MIPI_DSI44, 	0x00);	// HBP_H
+	max96789_write_reg(priv, MAX96789_MIPI_DSI45, 	0x00);	// HRES_L
+	max96789_write_reg(priv, MAX96789_MIPI_DSI46, 	0x05);	// HRES_H
+	max96789_write_reg(priv, MAX96789_MIPI_DSI36, 	0xC1);	// FIFO / DESKEW_EN
+	
+	usleep_range(2000, 5000);
 }
 
-static int max96789_gmsl2_get_link_lock(struct max96789_priv *priv, int link_n)
+static int max96789_gmsl2_get_link_lock(struct max96789_priv *priv)
 {
 	u8 val;
-
 	max96789_read(priv, MAX96789_CTRL3, &val);
 
 	return !!(val & BIT(3));
 }
 
+static void max96789_reset_oneshot(struct max96789_priv *priv, u8 mask, u8 bits)
+{
+	int timeout;
+	u8 val;
+
+	max96789_update_bits(priv, MAX96789_CTRL0, mask, bits);
+				       
+	/* wait for one-shot bit self-cleared */
+	for (timeout = 0; timeout < 100; timeout++) 
+	{
+		max96789_read(priv, MAX96789_CTRL0, &val);
+		//if (!(val & mask))
+			//break;
+
+		mdelay(1);
+	}
+
+	//if (val & mask)
+		//dev_err(&priv->client->dev, "Failed reset oneshot 0x%x\n", mask);
+}
+
 static int max96789_gmsl2_reverse_channel_setup(struct max96789_priv *priv, int link_n)
 {
-	//struct max96712_link *link = priv->link[link_n];
-	int des_addrs[] = {0x40, 0x42, 0x60, 0x62};	/* possible MAX9295 addresses on i2c bus */
+	printk("[%s (%d)]\n", __FUNCTION__, __LINE__);
+	struct max96789_link *link = priv->link[link_n];
+	/* possible MAX96776 addresses on i2c bus */
+	int des_addrs[] = {0x3A};	
 	int timeout = 100;
 	int ret = 0;
 	int val = 0, i, j = 0;
 
-	max96789_update_bits(priv, MAX96789_REG4, 0x50, 0x40);
-	
-	//max96789_reset_oneshot(priv, 0);
+	max96789_reset_oneshot(priv, 0x20, BIT(5));
 
 	/*
 	 * wait the link to be established,
 	 * indicated when status bit LOCKED goes high
 	 */
-	//for (; timeout > 0; timeout--) 
-	//{
-		//if (max96789_gmsl2_get_link_lock(priv, 0))
-			//break;
-		//mdelay(1);
-	//}
+	for (; timeout > 0; timeout--) 
+	{
+		if (max96789_gmsl2_get_link_lock(priv))
+			break;
+		mdelay(1);
+	}
 
-	//if (!timeout) 
-	//{
-		//ret = -ETIMEDOUT;
-		////goto out;
-	//}
+	if (!timeout) 
+	{
+		ret = -ETIMEDOUT;
+		goto out;
+	}
 
 	for (i = 0; i < ARRAY_SIZE(des_addrs); i++) 
 	{
-		/* read deserializer ID */
-		//__reg16_read(des_addrs[i], 0x000d, &val);
-		//if (val == MAX9295A_ID || val == MAX9295B_ID) 
-		//{
-			//dev_dbg(&priv->client->dev, "ID val:0x%x>\n", val);
-			//link->des_id = val;
-			 ///* relocate deserizlizer on I2C bus */
-			//__reg16_write(des_addrs[i], 0x0000, link->des_addr << 1);
-			//usleep_range(2000, 2500);
-			//j = i;
-		//}
+		/* read de-serializer ID */
+		__reg16_read(des_addrs[i], 0x000d, &val);					
+		if (val == MAX96776_ID || val == MAX96778_ID) 
+		{
+			printk("[%s (%d)]: des_addrs[%d]: 0x%X, chip_id = 0x%X\n", __FUNCTION__, __LINE__, i, des_addrs[i], val);	
+			dev_dbg(&priv->client->dev, "ID val:0x%x>\n", val);
+			link->des_id = val;
+			///* relocate de-serizlizer on I2C bus */
+			//__reg16_write(des_addrs[i], 0x0000, link->des_addr << 1);	
+			usleep_range(2000, 2500);
+			j = i;
+		}
 	}
-
-
-	max96789_write_reg(priv, MAX96789_REG2, BIT(4));
 	
-	//priv->links_mask |= BIT(link_n);
-
+out:
+	dev_info(&priv->client->dev, "link%d %s %sat 0x%X (0x%X) %s\n",
+			 link_n, chip_name(link->des_id),
+			 ret == -EADDRINUSE ? "already " : "",
+			 link->des_addr, des_addrs[j], ret == -ETIMEDOUT ?
+			 "not found: timeout GMSL2 link establish" : "");
 	return ret;
 }
 
 static void max96789_initialize(struct max96789_priv *priv)
 {
 	printk("[%s (%d)]\n", __FUNCTION__, __LINE__);
-	//struct max96789_source *source;
 	int ret;
-	int link = 0;
 
 	max96789_preinit(priv);
+	
+	max96789_mipi_link_pipe_setup(priv);
+	
 	max96789_gmsl2_initial_setup(priv);
-	max96789_mipi_setup(priv);	// MIPI-DSI
+	
+	max96789_pipe_override(priv);
 
-	max96789_gmsl2_link_pipe_setup(priv, 0);
-	//max96789_gmsl2_reverse_channel_setup(priv, 0);
-	
-	///* Start all cameras. */
-	//for_each_source(priv, source) 
-	//{
-		//max96712_gmsl2_link_pipe_setup(priv, link);
-		//ret = max96712_gmsl2_reverse_channel_setup(priv, link);
-		//if (ret < 0)
-			//source->linkup = false;
-		//else
-			//source->linkup = true;
-		//link++;
-	//}
-	//max96712_gmsl2_fsync_setup(priv);
-	
-	//max967XX_set_regs(priv, 0);
+	//max96789_video_timing(priv);
 		
 	if (DEBUG_COLOR_PATTERN == 1)
 	{
-		max96789_patgen(priv, PATTERN_TYPE);
+		max96789_patgen(priv, SER_PATTERN_SEL);
 	}
-	return;
+	
+	usleep_range(2000, 5000);
+}
+
+/* -----------------------------------------------------------------------------
+ * max96776
+ */
+static int max96776_sensor_set_regs(struct max96789_priv *priv, u32 link_nr)
+{
+	int ret;
+	struct max96789_link *link;
+
+	link = priv->link[link_nr];
+
+	max96776_write_reg(link, 0x0010, 0x21);	/* SW reset */
+	msleep(200);
+
+	/* Program the camera sensor initial configuration. */
+	ret = max96776_set_regs(link, configuretable_vc0113,
+							ARRAY_SIZE(configuretable_vc0113));
+	msleep(200);
+	return ret;
 }
 
 /* -----------------------------------------------------------------------------
  * DRM Bridge Operations
  */
+ static const struct drm_connector_funcs max96789_connector_funcs = {
+	.dpms = drm_helper_connector_dpms,
+	.fill_modes = drm_helper_probe_single_connector_modes,
+	.destroy = drm_connector_cleanup,
+	.reset = drm_atomic_helper_connector_reset,
+	.atomic_duplicate_state = drm_atomic_helper_connector_duplicate_state,
+	.atomic_destroy_state = drm_atomic_helper_connector_destroy_state,
+};
+
+static struct drm_connector_helper_funcs max96789_connector_helper_funcs = {
+	.get_modes = max96789_connector_get_modes,
+	.best_encoder = max96789_connector_best_encoder,
+};
+
+static int max96789_connector_get_modes(struct drm_connector *connector)
+{
+	int count;
+	count = drm_add_modes_noedid(connector, 8192, 8192);
+	drm_set_preferred_mode(connector, 1280, 768);
+	return count;
+}
+
+static struct drm_encoder *max96789_connector_best_encoder(struct drm_connector *connector)
+{
+	struct max96789_priv *priv = connector_to_max96789_priv(connector);
+	return priv->bridge.encoder;
+}
+
 static int max96789_bridge_attach(struct drm_bridge *bridge,
 				enum drm_bridge_attach_flags flags)
 {
+	printk("[%s (%d)]\n", __FUNCTION__, __LINE__);
 	int ret;
 	struct max96789_priv *priv = bridge_to_max96789_priv(bridge);
 	struct mipi_dsi_host *host;
@@ -452,7 +435,19 @@ static int max96789_bridge_attach(struct drm_bridge *bridge,
 		return ret;
 	}
 	
-	max96789_initialize(priv);
+	ret = drm_connector_init(bridge->dev, &priv->connector,
+							 &max96789_connector_funcs,
+							 DRM_MODE_CONNECTOR_VIRTUAL);
+	if (ret) 
+	{
+		DRM_ERROR("Failed to initialize connector with drm\n");
+		return ret;
+	}	
+	drm_connector_helper_add(&priv->connector, 
+							 &max96789_connector_helper_funcs);
+	drm_connector_attach_encoder(&priv->connector, bridge->encoder);
+
+	//max96789_initialize(priv);
 	
 	printk("[%s (%d)]\n", __FUNCTION__, __LINE__);
 	return drm_bridge_attach(bridge->encoder, priv->next_bridge, bridge, flags);
@@ -463,8 +458,6 @@ static void max96789_bridge_enable(struct drm_bridge *bridge)
 	struct max96789_priv *priv = bridge_to_max96789_priv(bridge);
 
 	gpiod_set_value_cansleep(priv->gpiod_pwdn, 1);
-	
-	max96789_initialize(priv);
 	
 	printk("[%s (%d)]\n", __FUNCTION__, __LINE__);
 }
@@ -490,15 +483,24 @@ static const struct drm_bridge_funcs max96789_bridge_funcs = {
 
 static int max96789_bridge_probe(struct i2c_client *client)
 {
-	struct device *dev = &client->dev;
 	struct max96789_priv *priv;
+	struct device *dev = &client->dev;
+	struct device_node *np = client->dev.of_node;
 	int ret;
+	int addrs[3];
 
 	priv = devm_kzalloc(&client->dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
 		return -ENOMEM;
 
-	dev_set_drvdata(dev, priv);
+	int i;
+	for (i = 0; i < MAX96789_NUM_GMSL; i++) 
+	{
+		priv->link[i] = devm_kzalloc(&client->dev, sizeof(*priv->link[i]), GFP_KERNEL);
+		if (!priv->link[i])
+			return -ENOMEM;
+	}
+	
 	priv->dev = dev;
 
 	//priv->regmap = devm_regmap_init_i2c(client, &max96789_i2c_regmap);
@@ -517,9 +519,15 @@ static int max96789_bridge_probe(struct i2c_client *client)
 
 	priv->client = client;
 	priv->dt = MIPI_DT_RGB888;
+	of_property_read_u32_array(np, "reg", addrs, ARRAY_SIZE(addrs));
+
+	for (i = 0; i < MAX96789_NUM_GMSL; i++) 
+	{
+		priv->link[i]->des_addr = addrs[i+1];
+		//priv->link[i]->out_vc = i;				
+		priv->link[i]->client = i2c_new_dummy_device(client->adapter, addrs[i+1]);
+	}
 	i2c_set_clientdata(client, priv);
-	
-	//max96789_initialize(priv);
 
 	priv->host_node = of_graph_get_remote_node(priv->dev->of_node
 				, 0, 0);
@@ -529,7 +537,10 @@ static int max96789_bridge_probe(struct i2c_client *client)
 	drm_bridge_add(&priv->bridge);
 	
 	ret = drm_of_find_panel_or_bridge(priv->dev->of_node, 1, 0,
-				NULL, &priv->next_bridge);
+			NULL, &priv->next_bridge);
+	
+	//ret = drm_of_find_panel_or_bridge(priv->dev->of_node, 1, 0,
+				//&priv->next_panel, NULL);
 	
 	if (ret) 
 	{
@@ -537,41 +548,20 @@ static int max96789_bridge_probe(struct i2c_client *client)
 		//return ret;
 	}
 	
-	// ------------- debug
-	u8 vddbad = 0;
-	max96789_read(priv, MAX96789_PWR0, &vddbad);
-	printk("[%s (%d)]: vdd info = %d\n", __FUNCTION__, __LINE__, vddbad);
+	max96789_initialize(priv);
 	
-	u8 link_status = 0;
-	max96789_read(priv, MAX96789_REG15, &link_status);
-	printk("[%s (%d)]: link_status = %d\n", __FUNCTION__, __LINE__, link_status);
-	
-	u8 pclk_det = 0;
-	max96789_read(priv, MAX96789_VTX_X(1), &pclk_det);
-	if (pclk_det == 1)
+	for (i = 0; i < MAX96789_NUM_GMSL; i++)
 	{
-		printk("[%s (%d)]: PCLK is not detected\n", __FUNCTION__, __LINE__);
+		int link_n = i;
+		int ret = 0;
+		ret = max96789_gmsl2_reverse_channel_setup(priv, link_n);
+		
+		max96776_sensor_set_regs(priv, link_n);
+		
 	}
-	else
-	{
-		printk("[%s (%d)]: pclk_det = %d\n", __FUNCTION__, __LINE__, pclk_det);
-	}
-	
 
-	u8 hs_vs_det = 0;
-	max96789_read(priv, MAX96789_HS_VS_X, &hs_vs_det);
-	if (hs_vs_det == 3)
-	{
-		printk("[%s (%d)]: HS VS DE are not detected\n", __FUNCTION__, __LINE__);
-	}
-	else
-	{
-		printk("[%s (%d)]: hs_vs_det = %d\n", __FUNCTION__, __LINE__, hs_vs_det);
-	}
-	
-	u8 dsi_contr_0_status = 0;
-	max96789_read(priv, MAX96789_MIPI_DSI32, &dsi_contr_0_status);
-	printk("[%s (%d)]: dsi_contr_0_status = %d\n", __FUNCTION__, __LINE__, dsi_contr_0_status);
+	// ------------- debug
+	DEBUG_INFO(priv);
 	
 	return 0;
 }

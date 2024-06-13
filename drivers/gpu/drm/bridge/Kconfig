@@ -254,5 +254,9 @@ config DRM_MAX_96789
 	select DRM_KMS_HELPER
 	help
 	  Maxim Max96789 Serializer driver
-
+	  
+config DUMMY_PANEL
+	tristate "dummy panel"
+	help
+	  It's a dummy device for VC0113.
 endmenu

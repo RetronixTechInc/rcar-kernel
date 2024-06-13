@@ -368,20 +368,6 @@ static int max96776_sensor_set_regs(struct max96789_priv *priv, u32 link_nr)
 /* -----------------------------------------------------------------------------
  * DRM Bridge Operations
  */
- static const struct drm_connector_funcs max96789_connector_funcs = {
-	.dpms = drm_helper_connector_dpms,
-	.fill_modes = drm_helper_probe_single_connector_modes,
-	.destroy = drm_connector_cleanup,
-	.reset = drm_atomic_helper_connector_reset,
-	.atomic_duplicate_state = drm_atomic_helper_connector_duplicate_state,
-	.atomic_destroy_state = drm_atomic_helper_connector_destroy_state,
-};
-
-static struct drm_connector_helper_funcs max96789_connector_helper_funcs = {
-	.get_modes = max96789_connector_get_modes,
-	.best_encoder = max96789_connector_best_encoder,
-};
-
 static int max96789_connector_get_modes(struct drm_connector *connector)
 {
 	int count;
@@ -395,6 +381,20 @@ static struct drm_encoder *max96789_connector_best_encoder(struct drm_connector 
 	struct max96789_priv *priv = connector_to_max96789_priv(connector);
 	return priv->bridge.encoder;
 }
+
+ static const struct drm_connector_funcs max96789_connector_funcs = {
+	.dpms = drm_helper_connector_dpms,
+	.fill_modes = drm_helper_probe_single_connector_modes,
+	.destroy = drm_connector_cleanup,
+	.reset = drm_atomic_helper_connector_reset,
+	.atomic_duplicate_state = drm_atomic_helper_connector_duplicate_state,
+	.atomic_destroy_state = drm_atomic_helper_connector_destroy_state,
+};
+
+static struct drm_connector_helper_funcs max96789_connector_helper_funcs = {
+	.get_modes = max96789_connector_get_modes,
+	.best_encoder = max96789_connector_best_encoder,
+};
 
 static int max96789_bridge_attach(struct drm_bridge *bridge,
 				enum drm_bridge_attach_flags flags)
@@ -436,15 +436,15 @@ static int max96789_bridge_attach(struct drm_bridge *bridge,
 	}
 	
 	ret = drm_connector_init(bridge->dev, &priv->connector,
-							 &max96789_connector_funcs,
-							 DRM_MODE_CONNECTOR_VIRTUAL);
+				 &max96789_connector_funcs,
+				 DRM_MODE_CONNECTOR_VIRTUAL);
 	if (ret) 
 	{
 		DRM_ERROR("Failed to initialize connector with drm\n");
 		return ret;
 	}	
-	drm_connector_helper_add(&priv->connector, 
-							 &max96789_connector_helper_funcs);
+	drm_connector_helper_add(&priv->connector,
+		       		 &max96789_connector_helper_funcs);
 	drm_connector_attach_encoder(&priv->connector, bridge->encoder);
 
 	//max96789_initialize(priv);

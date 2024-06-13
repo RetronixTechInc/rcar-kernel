@@ -133,6 +133,7 @@ struct max96789_priv {
 	struct device_node	*host_node;
 	struct max96789_link *link[MAX96789_NUM_GMSL];
 	
+	struct drm_connector	connector;
 	struct drm_bridge 	bridge;
 	struct drm_bridge 	*next_bridge;
 	
